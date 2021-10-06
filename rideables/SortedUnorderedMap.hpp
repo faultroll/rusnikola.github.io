@@ -94,11 +94,11 @@ public:
 	}
 
 
-	optional<V> get(K key, int tid);
-	optional<V> put(K key, V val, int tid);
+	V get(K key, int tid);
+	V put(K key, V val, int tid);
 	bool insert(K key, V val, int tid);
-	optional<V> remove(K key, int tid);
-	optional<V> replace(K key, V val, int tid);
+	V remove(K key, int tid);
+	V replace(K key, V val, int tid);
 };
 
 template <class K, class V> 
@@ -110,11 +110,11 @@ class SortedUnorderedMapFactory : public RideableFactory{
 
 //-------Definition----------
 template <class K, class V> 
-optional<V> SortedUnorderedMap<K,V>::get(K key, int tid) {
+V SortedUnorderedMap<K,V>::get(K key, int tid) {
 	MarkPtr* prev=nullptr;
 	Node* cur=nullptr;
 	Node* nxt=nullptr;
-	optional<V> res={};
+	V res={};
 
 	collect_retired_size(memory_tracker->get_retired_cnt(tid), tid);
 
@@ -128,12 +128,12 @@ optional<V> SortedUnorderedMap<K,V>::get(K key, int tid) {
 }
 
 template <class K, class V> 
-optional<V> SortedUnorderedMap<K,V>::put(K key, V val, int tid) {
+V SortedUnorderedMap<K,V>::put(K key, V val, int tid) {
 	Node* tmpNode = nullptr;
 	MarkPtr* prev=nullptr;
 	Node* cur=nullptr;
 	Node* nxt=nullptr;
-	optional<V> res={};
+	V res={};
 	tmpNode = mkNode(key, val, nullptr, tid);
 
 	collect_retired_size(memory_tracker->get_retired_cnt(tid), tid);
@@ -199,11 +199,11 @@ bool SortedUnorderedMap<K,V>::insert(K key, V val, int tid){
 }
 
 template <class K, class V> 
-optional<V> SortedUnorderedMap<K,V>::remove(K key, int tid) {
+V SortedUnorderedMap<K,V>::remove(K key, int tid) {
 	MarkPtr* prev=nullptr;
 	Node* cur=nullptr;
 	Node* nxt=nullptr;
-	optional<V> res={};
+	V res={};
 
 	collect_retired_size(memory_tracker->get_retired_cnt(tid), tid);
 
@@ -230,12 +230,12 @@ optional<V> SortedUnorderedMap<K,V>::remove(K key, int tid) {
 }
 
 template <class K, class V> 
-optional<V> SortedUnorderedMap<K,V>::replace(K key, V val, int tid) {
+V SortedUnorderedMap<K,V>::replace(K key, V val, int tid) {
 	Node* tmpNode = nullptr;
 	MarkPtr* prev=nullptr;
 	Node* cur=nullptr;
 	Node* nxt=nullptr;
-	optional<V> res={};
+	V res={};
 	tmpNode = mkNode(key, val, nullptr, tid);
 
 	collect_retired_size(memory_tracker->get_retired_cnt(tid), tid);

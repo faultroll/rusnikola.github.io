@@ -62,6 +62,7 @@ enum TrackerType{
 	Hazard = 1,
 	Hazard_dynamic = 3,
 	HE = 5,
+	WFE = 7,
 	FORK = 13,
 	// HyalineEL = 18,
 	// HyalineSEL = 19,
@@ -148,7 +149,10 @@ public:
 		} */ else if (tracker_type == "Hazard"){
 			tracker = new HazardTracker<T>(task_num, slot_num, empty_freq, collect);
 			type = Hazard;
-		} /* else if (tracker_type == "HE"){
+		} /* else if (tracker_type == "WFE"){
+			tracker = new WFETracker<T>(task_num, slot_num, epoch_freq, empty_freq, collect);
+			type = WFE;
+		} else if (tracker_type == "HE"){
 			// tracker = new HETracker<T>(task_num, slot_num, 1, collect);
 			tracker = new HETracker<T>(task_num, slot_num, epoch_freq, empty_freq, collect);
 			type = HE;

@@ -23,19 +23,19 @@ limitations under the License.
 #include <string>
 #include "Rideable.hpp"
 
-#include "optional.hpp"
+// #include "optional.hpp"
 
 template <class K, class V> class RUnorderedMap : public virtual Rideable{
 public:
 
 	// Gets value corresponding to a key
 	// returns : the most recent value set for that key
-	virtual optional<V> get(K key, int tid)=0;
+	virtual V get(K key, int tid)=0;
 
 	// Puts a new key/value pair into the map	
 	// returns : the previous value for this key,
 	// or NULL if no such value exists
-	virtual optional<V> put(K key, V val, int tid)=0;
+	virtual V put(K key, V val, int tid)=0;
 
 	// Inserts a new key/value pair into the map
 	// if the key is not already present
@@ -44,12 +44,12 @@ public:
 
 	// Removes a value corresponding to a key
 	// returns : the removed value
-	virtual optional<V> remove(K key, int tid)=0;
+	virtual V remove(K key, int tid)=0;
 
 	// Replaces the value corresponding to a key
 	// if the key is already present in the map
 	// returns : the replaced value, or NULL if replace was unsuccessful
-	virtual optional<V> replace(K key, V val, int tid)=0;
+	virtual V replace(K key, V val, int tid)=0;
 };
 
 #endif
