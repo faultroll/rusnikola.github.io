@@ -30,7 +30,7 @@ limitations under the License.
 #include <vector>
 #include <atomic>
 #include "ConcurrentPrimitives.hpp"
-#include "RAllocator.hpp"
+// #include "RAllocator.hpp"
 
 #include "BaseTracker.hpp"
 
@@ -45,7 +45,7 @@ private:
 	int freq;
 	bool collect;
 
-	RAllocator* mem;
+	// RAllocator* mem;
 
 public:
 	struct HazardInfo {
@@ -103,8 +103,8 @@ public:
 		this->task_num = task_num;
 		this->slotsPerThread = slotsPerThread;
 		this->freq = emptyFreq;
-		slots = (HazardSlot*) memalign(alignof(HazardSlot), sizeof(HazardSlot) * task_num);
-		local_slots = (HazardSlot*) memalign(alignof(HazardSlot), sizeof(HazardSlot) * task_num * task_num);
+		slots = (HazardSlot*) aligned_alloc(alignof(HazardSlot), sizeof(HazardSlot) * task_num);
+		local_slots = (HazardSlot*) aligned_alloc(alignof(HazardSlot), sizeof(HazardSlot) * task_num * task_num);
 		for (int i = 0; i < task_num; i++) {
 			for (int j = 0; j < slotsPerThread; j++) {
 				slots[i].entry[j]=NULL;

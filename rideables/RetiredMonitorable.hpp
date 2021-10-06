@@ -25,17 +25,20 @@ limitations under the License.
 #include <vector>
 #include <atomic>
 #include "ConcurrentPrimitives.hpp"
-#include "RAllocator.hpp"
+// #include "RAllocator.hpp"
 #include "MemoryTracker.hpp"
+
+extern int task_num_;
 
 class RetiredMonitorable{
 private:
 	padded<int64_t>* retired_cnt;
 	BaseMT* mem_tracker = NULL;
 public:
-	RetiredMonitorable(GlobalTestConfig* gtc){
-		retired_cnt = new padded<int64_t>[gtc->task_num+gtc->task_stall];
-		for (int i=0; i<gtc->task_num+gtc->task_stall; i++){
+	RetiredMonitorable(){
+		int task_num = task_num_; // gtc->task_num+gtc->task_stall;
+		retired_cnt = new padded<int64_t>[task_num];
+		for (int i=0; i<task_num; i++){
 			retired_cnt[i].ui = 0;
 		}
 	}

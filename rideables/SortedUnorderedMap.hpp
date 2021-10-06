@@ -21,10 +21,10 @@ limitations under the License.
 #define SORTED_UNORDEREDMAP
 
 #include <atomic>
-#include "Harness.hpp"
+// #include "Harness.hpp"
 #include "ConcurrentPrimitives.hpp"
 #include "RUnorderedMap.hpp"
-#include "HazardTracker.hpp"
+// #include "HazardTracker.hpp"
 #include "MemoryTracker.hpp"
 #include "RetiredMonitorable.hpp"
 #include <functional>
@@ -78,12 +78,12 @@ private:
 	}
 
 public:
-	SortedUnorderedMap(GlobalTestConfig* gtc,int idx_size):
-		RetiredMonitorable(gtc),idxSize(idx_size){
-        int epochf = gtc->getEnv("epochf").empty()? 150:stoi(gtc->getEnv("epochf"));
-        int emptyf = gtc->getEnv("emptyf").empty()? 30:stoi(gtc->getEnv("emptyf"));
-		std::cout<<"emptyf:"<<emptyf<<std::endl;
-		memory_tracker = new MemoryTracker<Node>(gtc, epochf, emptyf, 3, COLLECT);
+	SortedUnorderedMap(int idx_size):
+		RetiredMonitorable(),idxSize(idx_size){
+        int epochf = 150;
+        int emptyf = 30;
+		std::cout<<"epochf:"<<epochf<<", emptyf:"<<emptyf<<std::endl;
+		memory_tracker = new MemoryTracker<Node>(epochf, emptyf, 3, COLLECT);
 		this->setBaseMT(memory_tracker);
 	}
 	~SortedUnorderedMap(){};
@@ -103,8 +103,8 @@ public:
 
 template <class K, class V> 
 class SortedUnorderedMapFactory : public RideableFactory{
-	SortedUnorderedMap<K,V>* build(GlobalTestConfig* gtc){
-		return new SortedUnorderedMap<K,V>(gtc,30000);
+	SortedUnorderedMap<K,V>* build(){
+		return new SortedUnorderedMap<K,V>(30000);
 	}
 };
 

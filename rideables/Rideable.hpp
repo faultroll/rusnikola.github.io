@@ -22,14 +22,14 @@ limitations under the License.
 #define RIDEABLE_HPP
 
 #include <string>
-#include "TestConfig.hpp"
+// #include "TestConfig.hpp"
 
 #ifndef _REENTRANT
 #define _REENTRANT		/* basic 3-lines for threads */
 #endif
 
 
-class GlobalTestConfig;
+// class GlobalTestConfig;
 
 class Rideable{
 public:
@@ -45,7 +45,7 @@ public:
 
 class RideableFactory{
 public:
-	virtual Rideable* build(GlobalTestConfig* gtc)=0;
+	virtual Rideable* build()=0;
 	virtual ~RideableFactory(){};
 };
 #endif

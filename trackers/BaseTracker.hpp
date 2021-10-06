@@ -26,7 +26,7 @@ limitations under the License.
 #include <vector>
 #include <atomic>
 #include "ConcurrentPrimitives.hpp"
-#include "RAllocator.hpp"
+// #include "RAllocator.hpp"
 
 extern int count_retired;
 
