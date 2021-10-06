@@ -1,18 +1,19 @@
 
 prfx   ?= 
+cc     := $(prfx)gcc
 cxx    := $(prfx)g++
 ar     := $(prfx)ar
 ranlib := $(prfx)ranlib
 strip  := $(prfx)strip
 
 name    := memory_tracker
-srcs    := # $(wildcard *.cc)
+srcs    := test.cc # $(wildcard *.cc)
 objs    := $(patsubst %.cc,%.o,$(filter %.cc, $(srcs)))
 deps    := $(patsubst %.o,%.d,$(objs))
 libs    := -lpthread # -latomic
 cflags  := -I. -I./rideables -I./trackers
 ldflags := 
-common_cflags  := -Os -Wall -Wextra -std=c++11 -fPIC -fpermissive
+common_cflags  := -Os -Wall -Wextra -fPIC
 common_ldflags := -Wl,--gc-sections -Wl,--as-needed -Wl,--export-dynamic
 
 targets := $(name).elf
@@ -38,11 +39,11 @@ $(name).elf : $(objs)
 	@$(strip) --strip-all $@
 	$(info $(cxx) $(notdir $^) -o $(notdir $@))
 
+%.o : %.c
+	@$(cc) $(common_cflags) $(cflags) -std=c11 -Wpedantic -c $< -o $@ -MMD -MF $*.d -MP
+	$(info $(cc) -c $(notdir $<) -o $(notdir $@))
 %.o : %.cc
-	@$(cxx) $(common_cflags) $(cflags) -c $< -o $@ -MMD -MF $*.d -MP
-	$(info $(cxx) -c $(notdir $<) -o $(notdir $@))
-%.o : %.cpp
-	@$(cxx) $(common_cflags) $(cflags) -c $< -o $@ -MMD -MF $*.d -MP
+	@$(cxx) $(common_cflags) $(cflags) -std=c++11 -fpermissive -c $< -o $@ -MMD -MF $*.d -MP
 	$(info $(cxx) -c $(notdir $<) -o $(notdir $@))
 
 -include $(deps)
