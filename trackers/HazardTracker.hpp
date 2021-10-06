@@ -29,7 +29,7 @@ limitations under the License.
 #include <list>
 #include <vector>
 #include <atomic>
-#include "ConcurrentPrimitives.hpp"
+// #include "ConcurrentPrimitives.hpp"
 // #include "RAllocator.hpp"
 
 #include "BaseTracker.hpp"
@@ -60,12 +60,12 @@ public:
 private:
 	HazardSlot* slots;
 	HazardSlot* local_slots;
-	padded<HazardInfo*>* retired;
-	padded<int>* cntrs;
+	HazardInfo** retired; // padded
+	int* cntrs; // padded
 
 	void empty(int tid) {
 		HazardSlot* local = local_slots + tid * task_num;
-		HazardInfo** field = &(retired[tid].ui);
+		HazardInfo** field = &(retired[tid]);
 		HazardInfo* info = *field;
 		if (info == nullptr) return;
 		for (int i = 0; i < task_num; i++) {
@@ -110,11 +110,11 @@ public:
 				slots[i].entry[j]=NULL;
 			}
 		}
-		retired = new padded<HazardInfo*>[task_num];
-		cntrs = new padded<int>[task_num];
+		retired = new HazardInfo*[task_num];
+		cntrs = new int[task_num];
 		for (int i = 0; i<task_num; i++){
 			cntrs[i]=0;
-			retired[i].ui = nullptr;
+			retired[i] = nullptr;
 		}
 		this->collect = collect;
 	}
@@ -155,7 +155,7 @@ public:
 
 	void retire(T* ptr, int tid){
 		if (ptr==NULL){return;}
-		HazardInfo** field = &(retired[tid].ui);
+		HazardInfo** field = &(retired[tid]);
 		HazardInfo* info = (HazardInfo*) (ptr + 1);
 		info->next = *field;
 		*field = info;
@@ -163,7 +163,7 @@ public:
 			cntrs[tid]=0;
 			empty(tid);
 		}
-		cntrs[tid].ui++;
+		cntrs[tid]++;
 	}
 	
 

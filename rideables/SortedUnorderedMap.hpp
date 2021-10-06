@@ -22,7 +22,7 @@ limitations under the License.
 
 #include <atomic>
 // #include "Harness.hpp"
-#include "ConcurrentPrimitives.hpp"
+// #include "ConcurrentPrimitives.hpp"
 #include "RUnorderedMap.hpp"
 // #include "HazardTracker.hpp"
 #include "MemoryTracker.hpp"
@@ -58,7 +58,7 @@ class SortedUnorderedMap : public RUnorderedMap<K,V>, public RetiredMonitorable{
 private:
 	std::hash<K> hash_fn;
 	const int idxSize;
-	padded<MarkPtr>* bucket=new padded<MarkPtr>[idxSize]{};
+	MarkPtr* bucket=new MarkPtr[idxSize]{}; // padded
 	bool findNode(MarkPtr* &prev, Node* &cur, Node* &nxt, K key, int tid);
 	
 	MemoryTracker<Node>* memory_tracker;
@@ -273,7 +273,7 @@ bool SortedUnorderedMap<K,V>::findNode(MarkPtr* &prev, Node* &cur, Node* &nxt, K
 	while(true){
 		size_t idx=hash_fn(key)%idxSize;
 		bool cmark=false;
-		prev=&bucket[idx].ui;
+		prev=&bucket[idx];
 
 		cur=getPtr(memory_tracker->read(prev->ptr, 1, tid));
 

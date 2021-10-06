@@ -25,7 +25,8 @@ limitations under the License.
 #include <list>
 #include <vector>
 #include <atomic>
-#include "ConcurrentPrimitives.hpp"
+#include <assert.h>
+// #include "ConcurrentPrimitives.hpp"
 // #include "RAllocator.hpp"
 
 #include "BaseTracker.hpp"
@@ -89,7 +90,7 @@ class MemoryTracker : public BaseMT{
 private:
 	BaseTracker<T>* tracker = NULL;
 	TrackerType type = NIL;
-	padded<int*>* slot_renamers = NULL;
+	int** slot_renamers = NULL; // padded
 public:
 	MemoryTracker(int epoch_freq, int empty_freq, int slot_num, bool collect){
 		// count_retired = gtc->count_retired;
@@ -100,11 +101,11 @@ public:
 			// gtc->setEnv("tracker", "RCU");
 		}
 
-		slot_renamers = new padded<int*>[task_num];
+		slot_renamers = new int*[task_num];
 		for (int i = 0; i < task_num; i++){
-			slot_renamers[i].ui = new int[slot_num];
+			slot_renamers[i] = new int[slot_num];
 			for (int j = 0; j < slot_num; j++){
-				slot_renamers[i].ui[j] = j;
+				slot_renamers[i][j] = j;
 			}
 		}
 		if (tracker_type == "NIL"){
@@ -212,17 +213,17 @@ public:
 	}
 
 	T* read(std::atomic<T*>& obj, int idx, int tid){
-		return tracker->read(obj, slot_renamers[tid].ui[idx], tid);
+		return tracker->read(obj, slot_renamers[tid][idx], tid);
 	}
 
 	void transfer(int src_idx, int dst_idx, int tid){
-		int tmp = slot_renamers[tid].ui[src_idx];
-		slot_renamers[tid].ui[src_idx] = slot_renamers[tid].ui[dst_idx];
-		slot_renamers[tid].ui[dst_idx] = tmp;
+		int tmp = slot_renamers[tid][src_idx];
+		slot_renamers[tid][src_idx] = slot_renamers[tid][dst_idx];
+		slot_renamers[tid][dst_idx] = tmp;
 	}
 
 	void release(int idx, int tid){
-		tracker->release(slot_renamers[tid].ui[idx], tid);
+		tracker->release(slot_renamers[tid][idx], tid);
 	}
 	
 	void clear_all(int tid){

@@ -25,7 +25,7 @@ limitations under the License.
 #include <list>
 #include <vector>
 #include <atomic>
-#include "ConcurrentPrimitives.hpp"
+// #include "ConcurrentPrimitives.hpp"
 // #include "RAllocator.hpp"
 
 extern int count_retired;
@@ -34,27 +34,27 @@ template<class T> class BaseTracker{
 private:
 	int task_num;
 public:
-	paddedAtomic<unsigned long> *retired;
+	std::atomic<unsigned long> *retired; // padded
 
 	BaseTracker(int task_num):task_num(task_num){
-		retired = new paddedAtomic<unsigned long>;
-		retired->ui.store(0, std::memory_order_seq_cst);
+		retired = new std::atomic<unsigned long>;
+		retired->store(0, std::memory_order_seq_cst);
 	}
 
 	virtual int64_t get_retired_cnt(int tid){
 		// An average per-task
 		return count_retired ?
-			(retired->ui.load(std::memory_order_relaxed) / task_num)
+			(retired->load(std::memory_order_relaxed) / task_num)
 				: 0;
 	}
 
 	void inc_retired(int tid){
 		if (count_retired)
-			retired->ui.fetch_add(1, std::memory_order_relaxed);
+			retired->fetch_add(1, std::memory_order_relaxed);
 	}
 	void dec_retired(int tid){
 		if (count_retired)
-			retired->ui.fetch_sub(1, std::memory_order_relaxed);
+			retired->fetch_sub(1, std::memory_order_relaxed);
 	}
 
 	virtual void* alloc(int tid){
