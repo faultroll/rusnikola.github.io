@@ -25,8 +25,8 @@ limitations under the License.
 #include <list>
 #include <vector>
 #include <atomic>
-#include "ConcurrentPrimitives.hpp"
-#include "RAllocator.hpp"
+// #include "ConcurrentPrimitives.hpp"
+// #include "RAllocator.hpp"
 
 #include "BaseTracker.hpp"
 
@@ -56,28 +56,28 @@ public:
 private:
 	HESlot* reservations;
 	HESlot* local_reservations;
-	padded<uint64_t>* retire_counters;
-	padded<uint64_t>* alloc_counters;
-	padded<HEInfo*>* retired;
+	uint64_t* retire_counters; // padded
+	uint64_t* alloc_counters; // padded
+	HEInfo** retired; // padded
 
-	paddedAtomic<uint64_t> epoch;
+	std::atomic<uint64_t> epoch; // padded
 
 public:
 	~HETracker(){};
 	HETracker(int task_num, int he_num, int epochFreq, int emptyFreq, bool collect): 
 	 BaseTracker<T>(task_num),task_num(task_num),he_num(he_num),epochFreq(epochFreq),freq(emptyFreq),collect(collect){
-		retired = new padded<HEInfo*>[task_num];
-		reservations = (HESlot *) memalign(alignof(HESlot), sizeof(HESlot) * task_num);
-		local_reservations = (HESlot*) memalign(alignof(HESlot), sizeof(HESlot) * task_num * task_num);
+		retired = new HEInfo*[task_num];
+		reservations = (HESlot *) aligned_alloc(alignof(HESlot), sizeof(HESlot) * task_num);
+		local_reservations = (HESlot*) aligned_alloc(alignof(HESlot), sizeof(HESlot) * task_num * task_num);
 		for (int i = 0; i<task_num; i++){
-			retired[i].ui = nullptr;
+			retired[i] = nullptr;
 			for (int j = 0; j<he_num; j++){
 				reservations[i].entry[j].store(0, std::memory_order_release);
 			}
 		}
-		retire_counters = new padded<uint64_t>[task_num];
-		alloc_counters = new padded<uint64_t>[task_num];
-		epoch.ui.store(1, std::memory_order_release);
+		retire_counters = new uint64_t[task_num];
+		alloc_counters = new uint64_t[task_num];
+		epoch.store(1, std::memory_order_release);
 	}
 	HETracker(int task_num, int emptyFreq) : HETracker(task_num,emptyFreq,true){}
 
@@ -85,13 +85,13 @@ public:
 		return reserve(tid);
 	}
 	uint64_t getEpoch(){
-		return epoch.ui.load(std::memory_order_acquire);
+		return epoch.load(std::memory_order_acquire);
 	}
 
 	void* alloc(int tid){
 		alloc_counters[tid] = alloc_counters[tid]+1;
 		if(alloc_counters[tid]%(epochFreq*task_num)==0){
-			epoch.ui.fetch_add(1,std::memory_order_acq_rel);
+			epoch.fetch_add(1,std::memory_order_acq_rel);
 		}
 		char* block = (char*) malloc(sizeof(HEInfo) + sizeof(T));
 		HEInfo* info = (HEInfo*) (block + sizeof(T));
@@ -141,14 +141,14 @@ public:
 	}
 
 	inline void incrementEpoch(){
-		epoch.ui.fetch_add(1,std::memory_order_acq_rel);
+		epoch.fetch_add(1,std::memory_order_acq_rel);
 	}
 	
 	void retire(T* obj, int tid){
 		if(obj==NULL){return;}
-		HEInfo** field = &(retired[tid].ui);
+		HEInfo** field = &(retired[tid]);
 		HEInfo* info = (HEInfo*) (obj + 1);
-		info->retire_epoch = epoch.ui.load(std::memory_order_acquire);
+		info->retire_epoch = epoch.load(std::memory_order_acquire);
 		info->next = *field;
 		*field = info;
 		if(collect && retire_counters[tid]%freq==0){
@@ -174,7 +174,7 @@ public:
 	void empty(int tid) {
 		// erase safe objects
 		HESlot* local = local_reservations + tid * task_num;
-		HEInfo** field = &(retired[tid].ui);
+		HEInfo** field = &(retired[tid]);
 		HEInfo* info = *field;
 		if (info == nullptr) return;
 		for (int i = 0; i < task_num; i++) {

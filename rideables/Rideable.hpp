@@ -24,9 +24,9 @@ limitations under the License.
 #include <string>
 // #include "TestConfig.hpp"
 
-#ifndef _REENTRANT
-#define _REENTRANT		/* basic 3-lines for threads */
-#endif
+// #ifndef _REENTRANT
+// #define _REENTRANT		/* basic 3-lines for threads */
+// #endif
 
 
 // class GlobalTestConfig;

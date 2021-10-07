@@ -24,7 +24,8 @@ limitations under the License.
 #include <unordered_map>
 #include <atomic>
 #include <string>
-#include "Harness.hpp"
+#include <cassert>
+// #include "Harness.hpp"
 #include "RUnorderedMap.hpp"
 
 template <class K, class V> class SGLUnorderedMap : public RUnorderedMap<K,V>{
@@ -64,8 +65,8 @@ public:
 		return v.second;
 	}
 
-	optional<V> put(K key, V val, int tid){
-		optional<V> res = {};
+	V put(K key, V val, int tid){
+		V res = {};
 		lockAcquire(tid);
 		auto it = m->find(key);
 		if(it != m->end()){
@@ -76,8 +77,8 @@ public:
 		return res;
 	}
 
-	optional<V> replace(K key, V val, int tid){
-		optional<V> res = {};
+	V replace(K key, V val, int tid){
+		V res = {};
 		lockAcquire(tid);
 		auto v = m->find(key);
 		if(v != m->end()){
@@ -88,8 +89,8 @@ public:
 		return res;
 	}
 
-	optional<V> remove(K key,int tid){
-		optional<V> res = {};
+	V remove(K key,int tid){
+		V res = {};
 		lockAcquire(tid);
 		auto v = m->find(key);
 		if(v != m->end()){
@@ -100,8 +101,8 @@ public:
 		return res;
 	}
 
-	optional<V> get(K key, int tid){
-		optional<V> res = {};
+	V get(K key, int tid){
+		V res = {};
 		lockAcquire(tid);
 		auto v = m->find(key);
 		if(v != m->end()){
@@ -114,7 +115,7 @@ public:
 };
 
 template <class K, class V> class SGLUnorderedMapFactory : public RideableFactory{
-	SGLUnorderedMap<K,V>* build(GlobalTestConfig* gtc){
+	SGLUnorderedMap<K,V>* build(){
 		return new SGLUnorderedMap<K,V>();
 	}
 };

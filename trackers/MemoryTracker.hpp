@@ -25,12 +25,11 @@ limitations under the License.
 #include <list>
 #include <vector>
 #include <atomic>
-#include <assert.h>
 // #include "ConcurrentPrimitives.hpp"
 // #include "RAllocator.hpp"
 
 #include "BaseTracker.hpp"
-// #include "RCUTracker.hpp"
+#include "RCUTracker.hpp"
 // #include "HyalineTrackerEL.hpp"
 // #include "HyalineSTrackerEL.hpp"
 // #include "HyalineOTrackerEL.hpp"
@@ -39,10 +38,10 @@ limitations under the License.
 // #include "HyalineSTrackerTR.hpp"
 // #include "HyalineOTrackerTR.hpp"
 // #include "HyalineOSTrackerTR.hpp"
-// #include "IntervalTracker.hpp"
-// #include "RangeTrackerNew.hpp"
+#include "IntervalTracker.hpp"
+#include "RangeTrackerNew.hpp"
 #include "HazardTracker.hpp"
-// #include "HETracker.hpp"
+#include "HETracker.hpp"
 /* #if !(__x86_64__ || __ppc64__)
 #include "RangeTrackerTP.hpp"
 #endif */
@@ -55,16 +54,16 @@ enum TrackerType{
 	//for epoch-based trackers.
 	RCU = 2,
 	Interval = 4,
-	Range = 6,
+	// Range = 6,
 	Range_new = 8,
 	QSBR = 10,
-	Range_TP = 12,
+	// Range_TP = 12,
 	//for HP-like trackers.
 	Hazard = 1,
-	Hazard_dynamic = 3,
+	// Hazard_dynamic = 3,
 	HE = 5,
-	WFE = 7,
-	FORK = 13,
+	// WFE = 7,
+	// FORK = 13,
 	// HyalineEL = 18,
 	// HyalineSEL = 19,
 	// HyalineOEL = 20,
@@ -82,7 +81,7 @@ public:
 	virtual void lastExit(int tid) = 0;
 };
 
-// extern int count_retired;
+// extern int count_retired_;
 extern int task_num_;
 
 template<class T>
@@ -93,7 +92,7 @@ private:
 	int** slot_renamers = NULL; // padded
 public:
 	MemoryTracker(int epoch_freq, int empty_freq, int slot_num, bool collect){
-		// count_retired = gtc->count_retired;
+		// count_retired_ = gtc->count_retired_;
 		int task_num = task_num_; // gtc->task_num + gtc->task_stall;
 		std::string tracker_type = "Hazard"; // gtc->getEnv("tracker");
 		if (tracker_type.empty()){
@@ -111,10 +110,10 @@ public:
 		if (tracker_type == "NIL"){
 			tracker = new BaseTracker<T>(task_num);
 			type = NIL;
-		} /* else if (tracker_type == "RCU"){
+		} else if (tracker_type == "RCU"){
 			tracker = new RCUTracker<T>(task_num, epoch_freq, empty_freq, collect);
 			type = RCU;
-		} */ /* else if (tracker_type == "HyalineEL"){
+		} /* else if (tracker_type == "HyalineEL"){
 			tracker = new HyalineELTracker<T>(task_num, epoch_freq, empty_freq, 128, collect);
 			type = HyalineEL;
 		} else if (tracker_type == "HyalineSEL"){
@@ -144,16 +143,16 @@ public:
 		} else if (tracker_type == "HyalineOSTR"){
 			tracker = new HyalineOSTRTracker<T>(task_num, epoch_freq, empty_freq, collect);
 			type = HyalineOSTR;
-		} */ /* else if (tracker_type == "Range_new"){
+		} */ else if (tracker_type == "Range_new"){
 			tracker = new RangeTrackerNew<T>(task_num, epoch_freq, empty_freq, collect);
 			type = Range_new;
-		} */ else if (tracker_type == "Hazard"){
+		} else if (tracker_type == "Hazard"){
 			tracker = new HazardTracker<T>(task_num, slot_num, empty_freq, collect);
 			type = Hazard;
 		} /* else if (tracker_type == "WFE"){
 			tracker = new WFETracker<T>(task_num, slot_num, epoch_freq, empty_freq, collect);
 			type = WFE;
-		} else if (tracker_type == "HE"){
+		} */ else if (tracker_type == "HE"){
 			// tracker = new HETracker<T>(task_num, slot_num, 1, collect);
 			tracker = new HETracker<T>(task_num, slot_num, epoch_freq, empty_freq, collect);
 			type = HE;
@@ -163,8 +162,8 @@ public:
 		} else if (tracker_type == "Interval"){
 			tracker = new IntervalTracker<T>(task_num, epoch_freq, empty_freq, collect);
 			type = Interval;
-		} */
-		
+		}
+
 		// only compile in 32 bit mode
 /* #if !(__x86_64__ || __ppc64__)
 		else if (tracker_type == "TP"){
@@ -174,7 +173,7 @@ public:
 #endif */
 
 		else {
-			fprintf(stderr, "constructor - tracker type error.");
+			fprintf(stderr, "constructor - tracker type %s error.", tracker_type.c_str());
 			exit(EXIT_FAILURE);
 		}
 		

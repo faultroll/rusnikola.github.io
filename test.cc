@@ -1,7 +1,8 @@
 
+#include "rideables/SGLUnorderedMap.hpp"
 #include "rideables/SortedUnorderedMap.hpp"
 
-int count_retired = 0;
+int count_retired_ = 0;
 int task_num_ = 32;
 
 int main(void)

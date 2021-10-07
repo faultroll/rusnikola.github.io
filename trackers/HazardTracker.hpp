@@ -21,9 +21,9 @@ limitations under the License.
 #ifndef HAZARD_TRACKER_HPP
 #define HAZARD_TRACKER_HPP
 
-#ifndef _REENTRANT
-#define _REENTRANT
-#endif
+// #ifndef _REENTRANT
+// #define _REENTRANT
+// #endif
 
 #include <queue>
 #include <list>

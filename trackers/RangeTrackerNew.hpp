@@ -25,8 +25,8 @@ limitations under the License.
 #include <list>
 #include <vector>
 #include <atomic>
-#include "ConcurrentPrimitives.hpp"
-#include "RAllocator.hpp"
+// #include "ConcurrentPrimitives.hpp"
+// #include "RAllocator.hpp"
 
 #include "BaseTracker.hpp"
 
@@ -46,29 +46,29 @@ public:
 	};
 	
 private:
-	paddedAtomic<uint64_t>* upper_reservs;
-	paddedAtomic<uint64_t>* lower_reservs;
-	padded<uint64_t>* retire_counters;
-	padded<uint64_t>* alloc_counters;
-	padded<IntervalInfo*>* retired;
+	std::atomic<uint64_t>* upper_reservs; // padded
+	std::atomic<uint64_t>* lower_reservs; // padded
+	uint64_t* retire_counters; // padded
+	uint64_t* alloc_counters; // padded
+	IntervalInfo** retired; // padded
 
-	paddedAtomic<uint64_t> epoch;
+	std::atomic<uint64_t> epoch; // padded
 
 public:
 	~RangeTrackerNew(){};
 	RangeTrackerNew(int task_num, int epochFreq, int emptyFreq, bool collect): 
 	 BaseTracker<T>(task_num),task_num(task_num),freq(emptyFreq),epochFreq(epochFreq),collect(collect){
-		retired = new padded<IntervalInfo*>[task_num];
-		upper_reservs = new paddedAtomic<uint64_t>[task_num];
-		lower_reservs = new paddedAtomic<uint64_t>[task_num];
+		retired = new IntervalInfo*[task_num];
+		upper_reservs = new std::atomic<uint64_t>[task_num];
+		lower_reservs = new std::atomic<uint64_t>[task_num];
 		for (int i = 0; i < task_num; i++){
-			retired[i].ui = nullptr;
-			upper_reservs[i].ui.store(UINT64_MAX, std::memory_order_release);
-			lower_reservs[i].ui.store(UINT64_MAX, std::memory_order_release);
+			retired[i] = nullptr;
+			upper_reservs[i].store(UINT64_MAX, std::memory_order_release);
+			lower_reservs[i].store(UINT64_MAX, std::memory_order_release);
 		}
-		retire_counters = new padded<uint64_t>[task_num];
-		alloc_counters = new padded<uint64_t>[task_num];
-		epoch.ui.store(0,std::memory_order_release);
+		retire_counters = new uint64_t[task_num];
+		alloc_counters = new uint64_t[task_num];
+		epoch.store(0,std::memory_order_release);
 	}
 	RangeTrackerNew(int task_num, int epochFreq, int emptyFreq) : RangeTrackerNew(task_num,epochFreq,emptyFreq,true){}
 
@@ -76,13 +76,13 @@ public:
 		return reserve(tid);
 	}
 	uint64_t get_epoch(){
-		return epoch.ui.load(std::memory_order_acquire);
+		return epoch.load(std::memory_order_acquire);
 	}
 
 	void* alloc(int tid){
 		alloc_counters[tid] = alloc_counters[tid]+1;
 		if(alloc_counters[tid]%(epochFreq*task_num)==0){
-			epoch.ui.fetch_add(1,std::memory_order_acq_rel);
+			epoch.fetch_add(1,std::memory_order_acq_rel);
 		}
 		char* block = (char*) malloc(sizeof(IntervalInfo) + sizeof(T));
 		IntervalInfo* info = (IntervalInfo*) (block + sizeof(T));
@@ -104,29 +104,29 @@ public:
 		return read(obj, tid);
 	}
     T* read(std::atomic<T*>& obj, int tid){
-        uint64_t prev_epoch = upper_reservs[tid].ui.load(std::memory_order_acquire);
+        uint64_t prev_epoch = upper_reservs[tid].load(std::memory_order_acquire);
 		while(true){
 			T* ptr = obj.load(std::memory_order_acquire);
 			uint64_t curr_epoch = get_epoch();
 			if (curr_epoch == prev_epoch){
 				return ptr;
 			} else {
-				// upper_reservs[tid].ui.store(curr_epoch, std::memory_order_release);
-				upper_reservs[tid].ui.store(curr_epoch, std::memory_order_seq_cst);
+				// upper_reservs[tid].store(curr_epoch, std::memory_order_release);
+				upper_reservs[tid].store(curr_epoch, std::memory_order_seq_cst);
 				prev_epoch = curr_epoch;
 			}
 		}
     }
 
     void reserve_slot(T* ptr, int idx, int tid, T* node){
-        uint64_t prev_epoch = upper_reservs[tid].ui.load(std::memory_order_acquire);
+        uint64_t prev_epoch = upper_reservs[tid].load(std::memory_order_acquire);
                while(true){
                        uint64_t curr_epoch = get_epoch();
                        if (curr_epoch == prev_epoch){
                                return;
                        } else {
-                               // upper_reservs[tid].ui.store(curr_epoch, std::memory_order_release);
-                               upper_reservs[tid].ui.store(curr_epoch, std::memory_order_seq_cst);
+                               // upper_reservs[tid].store(curr_epoch, std::memory_order_release);
+                               upper_reservs[tid].store(curr_epoch, std::memory_order_seq_cst);
                                prev_epoch = curr_epoch;
                         }
                 }
@@ -134,15 +134,15 @@ public:
 
 
 	void start_op(int tid){
-		uint64_t e = epoch.ui.load(std::memory_order_acquire);
-		lower_reservs[tid].ui.store(e,std::memory_order_seq_cst);
-		upper_reservs[tid].ui.store(e,std::memory_order_seq_cst);
-		// lower_reservs[tid].ui.store(e,std::memory_order_release);
-		// upper_reservs[tid].ui.store(e,std::memory_order_release);
+		uint64_t e = epoch.load(std::memory_order_acquire);
+		lower_reservs[tid].store(e,std::memory_order_seq_cst);
+		upper_reservs[tid].store(e,std::memory_order_seq_cst);
+		// lower_reservs[tid].store(e,std::memory_order_release);
+		// upper_reservs[tid].store(e,std::memory_order_release);
 	}
 	void end_op(int tid){
-		upper_reservs[tid].ui.store(UINT64_MAX,std::memory_order_release);
-		lower_reservs[tid].ui.store(UINT64_MAX,std::memory_order_release);
+		upper_reservs[tid].store(UINT64_MAX,std::memory_order_release);
+		lower_reservs[tid].store(UINT64_MAX,std::memory_order_release);
 	}
 	void reserve(int tid){
 		start_op(tid);
@@ -153,14 +153,14 @@ public:
 
 	
 	inline void incrementEpoch(){
-		epoch.ui.fetch_add(1,std::memory_order_acq_rel);
+		epoch.fetch_add(1,std::memory_order_acq_rel);
 	}
 	
 	void retire(T* obj, uint64_t birth_epoch, int tid){
 		if(obj==NULL){return;}
-		IntervalInfo** field = &(retired[tid].ui);
+		IntervalInfo** field = &(retired[tid]);
 		IntervalInfo* info = (IntervalInfo*) (obj + 1);
-		info->retire_epoch = epoch.ui.load(std::memory_order_acquire);
+		info->retire_epoch = epoch.load(std::memory_order_acquire);
 		info->next = *field;
 		*field = info;
 		if(collect && retire_counters[tid]%freq==0){
@@ -188,12 +188,12 @@ public:
 		uint64_t lower_epochs_arr[task_num];
 		for (int i = 0; i < task_num; i++){
 			//sequence matters.
-			lower_epochs_arr[i] = lower_reservs[i].ui.load(std::memory_order_acquire);
-			upper_epochs_arr[i] = upper_reservs[i].ui.load(std::memory_order_acquire);
+			lower_epochs_arr[i] = lower_reservs[i].load(std::memory_order_acquire);
+			upper_epochs_arr[i] = upper_reservs[i].load(std::memory_order_acquire);
 		}
 
 		// erase safe objects
-		IntervalInfo** field = &(retired[tid].ui);
+		IntervalInfo** field = &(retired[tid]);
 		IntervalInfo* info = *field;
 		while (info != nullptr) {
 			IntervalInfo* curr = info;

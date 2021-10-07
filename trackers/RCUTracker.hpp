@@ -25,8 +25,8 @@ limitations under the License.
 #include <list>
 #include <vector>
 #include <atomic>
-#include "ConcurrentPrimitives.hpp"
-#include "RAllocator.hpp"
+// #include "ConcurrentPrimitives.hpp"
+// #include "RAllocator.hpp"
 
 #include "BaseTracker.hpp"
 
@@ -48,26 +48,26 @@ public:
 	};
 	
 private:
-	paddedAtomic<uint64_t>* reservations;
-	padded<uint64_t>* retire_counters;
-	padded<uint64_t>* alloc_counters;
-	padded<RCUInfo*>* retired;
+	std::atomic<uint64_t>* reservations; // padded
+	uint64_t* retire_counters; // padded
+	uint64_t* alloc_counters; // padded
+	RCUInfo** retired; // padded
 
-	paddedAtomic<uint64_t> epoch;
+	std::atomic<uint64_t> epoch; // padded
 
 public:
 	~RCUTracker(){};
 	RCUTracker(int task_num, int epochFreq, int emptyFreq, RCUType type, bool collect): 
 	 BaseTracker<T>(task_num),task_num(task_num),freq(emptyFreq),epochFreq(epochFreq),collect(collect),type(type){
-		retired = new padded<RCUInfo *>[task_num];
-		reservations = new paddedAtomic<uint64_t>[task_num];
-		retire_counters = new padded<uint64_t>[task_num];
-		alloc_counters = new padded<uint64_t>[task_num];
+		retired = new RCUInfo*[task_num];
+		reservations = new std::atomic<uint64_t>[task_num];
+		retire_counters = new uint64_t[task_num];
+		alloc_counters = new uint64_t[task_num];
 		for (int i = 0; i<task_num; i++){
-			reservations[i].ui.store(UINT64_MAX,std::memory_order_release);
-			retired[i].ui = nullptr;
+			reservations[i].store(UINT64_MAX,std::memory_order_release);
+			retired[i] = nullptr;
 		}
-		epoch.ui.store(0,std::memory_order_release);
+		epoch.store(0,std::memory_order_release);
 	}
 	RCUTracker(int task_num, int epochFreq, int emptyFreq) : RCUTracker(task_num,epochFreq,emptyFreq,type_RCU,true){}
 	RCUTracker(int task_num, int epochFreq, int emptyFreq, bool collect) : 
@@ -80,23 +80,23 @@ public:
 	void* alloc(int tid){
 		alloc_counters[tid]=alloc_counters[tid]+1;
 		if(alloc_counters[tid]%(epochFreq*task_num)==0){
-			epoch.ui.fetch_add(1,std::memory_order_acq_rel);
+			epoch.fetch_add(1,std::memory_order_acq_rel);
 		}
 		return (void*)malloc(sizeof(T)+sizeof(RCUInfo));
 	}
 	void start_op(int tid){
 		if (type == type_RCU){
-			uint64_t e = epoch.ui.load(std::memory_order_acquire);
-			reservations[tid].ui.store(e,std::memory_order_seq_cst);
+			uint64_t e = epoch.load(std::memory_order_acquire);
+			reservations[tid].store(e,std::memory_order_seq_cst);
 		}
 		
 	}
 	void end_op(int tid){
 		if (type == type_RCU){
-			reservations[tid].ui.store(UINT64_MAX,std::memory_order_seq_cst);
+			reservations[tid].store(UINT64_MAX,std::memory_order_seq_cst);
 		} else { //if type == TYPE_QSBR
-			uint64_t e = epoch.ui.load(std::memory_order_acquire);
-			reservations[tid].ui.store(e,std::memory_order_seq_cst);
+			uint64_t e = epoch.load(std::memory_order_acquire);
+			reservations[tid].store(e,std::memory_order_seq_cst);
 		}
 	}
 	void reserve(int tid){
@@ -109,7 +109,7 @@ public:
 
 
 	inline void incrementEpoch(){
-		epoch.ui.fetch_add(1,std::memory_order_acq_rel);
+		epoch.fetch_add(1,std::memory_order_acq_rel);
 	}
 	
 	void __attribute__ ((deprecated)) retire(T* obj, uint64_t e, int tid){
@@ -118,9 +118,9 @@ public:
 	
 	void retire(T* obj, int tid){
 		if(obj==NULL){return;}
-		RCUInfo** field = &(retired[tid].ui);
+		RCUInfo** field = &(retired[tid]);
 		RCUInfo* info = (RCUInfo*) (obj + 1);
-		info->epoch = epoch.ui.load(std::memory_order_acquire);
+		info->epoch = epoch.load(std::memory_order_acquire);
 		info->next = *field;
 		*field = info;
 		if(collect && retire_counters[tid]%freq==0){
@@ -132,14 +132,14 @@ public:
 	void empty(int tid) {
 		uint64_t minEpoch = UINT64_MAX;
 		for (int i = 0; i<task_num; i++){
-			uint64_t res = reservations[i].ui.load(std::memory_order_acquire);
+			uint64_t res = reservations[i].load(std::memory_order_acquire);
 			if(res<minEpoch){
 				minEpoch = res;
 			}
 		}
 		
 		// erase safe objects
-		RCUInfo** field = &(retired[tid].ui);
+		RCUInfo** field = &(retired[tid]);
 		RCUInfo* info = *field;
 		while (info != nullptr) {
 			RCUInfo* curr = info;
