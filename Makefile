@@ -7,8 +7,8 @@ ranlib := $(prfx)ranlib
 strip  := $(prfx)strip
 
 name    := memory_tracker
-srcs    := test.cc rideables/BonsaiTree.cc # $(wildcard *.cc)
-objs    := $(patsubst %.cc,%.o,$(filter %.cc, $(srcs)))
+srcs    := test.cpp rideables/BonsaiTree.cpp # $(wildcard *.cpp)
+objs    := $(patsubst %.cpp,%.o,$(filter %.cpp, $(srcs)))
 deps    := $(patsubst %.o,%.d,$(objs))
 libs    := -lpthread # -latomic
 cflags  := -I. -I./rideables -I./trackers -Wno-unused-parameter
@@ -42,7 +42,7 @@ $(name).elf : $(objs)
 %.o : %.c
 	@$(cc) $(common_cflags) $(cflags) -std=c11 -Wpedantic -c $< -o $@ -MMD -MF $*.d -MP
 	$(info $(cc) -c $(notdir $<) -o $(notdir $@))
-%.o : %.cc
+%.o : %.cpp
 	@$(cxx) $(common_cflags) $(cflags) -std=c++11 -fpermissive -c $< -o $@ -MMD -MF $*.d -MP
 	$(info $(cxx) -c $(notdir $<) -o $(notdir $@))
 
