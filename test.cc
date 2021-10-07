@@ -2,8 +2,8 @@
 #include "rideables/SGLUnorderedMap.hpp"
 #include "rideables/SortedUnorderedMap.hpp"
 #include "rideables/LinkList.hpp"
-// #include "rideables/BonsaiTree.hpp"
-// #include "rideables/NatarajanTree.hpp"
+#include "rideables/BonsaiTree.hpp"
+#include "rideables/NatarajanTree.hpp"
 
 int count_retired_ = 0;
 int task_num_ = 24; // total thread number

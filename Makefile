@@ -7,7 +7,7 @@ ranlib := $(prfx)ranlib
 strip  := $(prfx)strip
 
 name    := memory_tracker
-srcs    := test.cc # $(wildcard *.cc)
+srcs    := test.cc rideables/BonsaiTree.cc # $(wildcard *.cc)
 objs    := $(patsubst %.cc,%.o,$(filter %.cc, $(srcs)))
 deps    := $(patsubst %.o,%.d,$(objs))
 libs    := -lpthread # -latomic

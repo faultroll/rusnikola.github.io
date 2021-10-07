@@ -38,6 +38,8 @@ limitations under the License.
 // #define ssmem_free(x,y)
 // #endif
 
+extern int task_num_;
+
 template <class K, class V>
 class NatarajanTree : public ROrderedMap<K,V>, public RetiredMonitorable{
 private:
@@ -86,7 +88,7 @@ private:
 	// Node s{infK,defltV,nullptr,nullptr,1};
 	Node* r;
 	Node* s;
-	padded<SeekRecord>* records;
+	SeekRecord* records; // padded
 	const size_t GET_POINTER_BITS = 0xfffffffffffffffc;//for machine 64-bit or less.
 
 	/* helper functions */
@@ -138,37 +140,38 @@ private:
 	bool cleanup(K key, int tid);
 	void doRangeQuery(Node& k1, Node& k2, int tid, Node* root, std::map<K,V>& res);
 public:
-	NatarajanTree(GlobalTestConfig* gtc): RetiredMonitorable(gtc)
+	NatarajanTree(): RetiredMonitorable()
 	//memory_tracker("HE",gtc->task_num,150,200,5,COLLECT)
 	{
 		//std::string type = gtc->getEnv("tracker").empty()? "RCU":gtc->getEnv("tracker");
 		//memory_tracker = new MemoryTracker<Node>(type, gtc->task_num, 150, 30, 5, COLLECT);
-        int epochf = gtc->getEnv("epochf").empty()? 150:stoi(gtc->getEnv("epochf"));
-        int emptyf = gtc->getEnv("emptyf").empty()? 30:stoi(gtc->getEnv("emptyf"));
-		memory_tracker = new MemoryTracker<Node>(gtc, epochf, emptyf, 5, COLLECT);
+        int epochf = 150;
+        int emptyf = 30;
+		memory_tracker = new MemoryTracker<Node>(epochf, emptyf, 5);
 		r = Node::alloc(infK,defltV,nullptr,nullptr,2,memory_tracker,0);
 		s = Node::alloc(infK,defltV,nullptr,nullptr,1,memory_tracker,0);
 		r->right = Node::alloc(infK,defltV,nullptr,nullptr,2,memory_tracker,0);
 		r->left = s;
 		s->right = Node::alloc(infK,defltV,nullptr,nullptr,1,memory_tracker,0);
 		s->left = Node::alloc(infK,defltV,nullptr,nullptr,0,memory_tracker,0);
-		records = new padded<SeekRecord>[gtc->task_num+gtc->task_stall]{};
+		int task_num = task_num_; // gtc->task_num+gtc->task_stall;
+		records = new SeekRecord[task_num]{};
 		this->setBaseMT(memory_tracker);
 	};
 	~NatarajanTree(){};
 
-	optional<V> get(K key, int tid);
-	optional<V> put(K key, V val, int tid);
+	V get(K key, int tid);
+	V put(K key, V val, int tid);
 	bool insert(K key, V val, int tid);
-	optional<V> remove(K key, int tid);
-	optional<V> replace(K key, V val, int tid);
+	V remove(K key, int tid);
+	V replace(K key, V val, int tid);
 	std::map<K, V> rangeQuery(K key1, K key2, int& len, int tid);
 };
 
 template <class K, class V> 
 class NatarajanTreeFactory : public RideableFactory{
-	NatarajanTree<K,V>* build(GlobalTestConfig* gtc){
-		return new NatarajanTree<K,V>(gtc);
+	NatarajanTree<K,V>* build(){
+		return new NatarajanTree<K,V>();
 	}
 };
 
@@ -177,7 +180,7 @@ template <class K, class V>
 void NatarajanTree<K,V>::seek(K key, int tid){
 	/* initialize the seek record using sentinel nodes */
 	Node keyNode{key,defltV,nullptr,nullptr};//node to be compared
-	SeekRecord* seekRecord=&(records[tid].ui);
+	SeekRecord* seekRecord=&(records[tid]);
 	seekRecord->ancestor=r;
 	seekRecord->successor=memory_tracker->read(r->left,1,tid);
 	seekRecord->parent=memory_tracker->read(r->left,2,tid);
@@ -228,7 +231,7 @@ bool NatarajanTree<K,V>::cleanup(K key, int tid){
 	bool res=false;
 
 	/* retrieve addresses stored in seek record */
-	SeekRecord* seekRecord=&(records[tid].ui);
+	SeekRecord* seekRecord=&(records[tid]);
 	Node* ancestor=getPtr(seekRecord->ancestor);
 	Node* successor=getPtr(seekRecord->successor);
 	Node* parent=getPtr(seekRecord->parent);
@@ -291,7 +294,7 @@ bool NatarajanTree<K,V>::cleanup(K key, int tid){
 // 	auto x = rangeQuery(key-500,key,len,tid);
 // 	Node keyNode{key,defltV,nullptr,nullptr};//node to be compared
 // 	optional<int> res={};
-// 	SeekRecord* seekRecord=&(records[tid].ui);
+// 	SeekRecord* seekRecord=&(records[tid]);
 // 	Node* leaf=nullptr;
 // 	seek(key,tid);
 // 	leaf=getPtr(seekRecord->leaf);
@@ -302,10 +305,10 @@ bool NatarajanTree<K,V>::cleanup(K key, int tid){
 // }
 
 template <class K, class V>
-optional<V> NatarajanTree<K,V>::get(K key, int tid){
+V NatarajanTree<K,V>::get(K key, int tid){
 	Node keyNode{key,defltV,nullptr,nullptr};//node to be compared
-	optional<V> res={};
-	SeekRecord* seekRecord=&(records[tid].ui);
+	V res={};
+	SeekRecord* seekRecord=&(records[tid]);
 	Node* leaf=nullptr;
 	collect_retired_size(memory_tracker->get_retired_cnt(tid), tid);
 	memory_tracker->start_op(tid);
@@ -320,9 +323,9 @@ optional<V> NatarajanTree<K,V>::get(K key, int tid){
 }
 
 template <class K, class V>
-optional<V> NatarajanTree<K,V>::put(K key, V val, int tid){
-	optional<V> res={};
-	SeekRecord* seekRecord=&(records[tid].ui);
+V NatarajanTree<K,V>::put(K key, V val, int tid){
+	V res={};
+	SeekRecord* seekRecord=&(records[tid]);
 
 	Node* newInternal=nullptr;
 	Node* newLeaf=Node::alloc(key,val,nullptr,nullptr,memory_tracker,tid);//also to compare keys
@@ -403,7 +406,7 @@ optional<V> NatarajanTree<K,V>::put(K key, V val, int tid){
 template <class K, class V>
 bool NatarajanTree<K,V>::insert(K key, V val, int tid){
 	bool res=false;
-	SeekRecord* seekRecord=&(records[tid].ui);
+	SeekRecord* seekRecord=&(records[tid]);
 	
 	Node* newInternal=nullptr;
 	Node* newLeaf=Node::alloc(key,val,nullptr,nullptr,memory_tracker,tid);//also for comparing keys
@@ -475,10 +478,10 @@ bool NatarajanTree<K,V>::insert(K key, V val, int tid){
 }
 
 template <class K, class V>
-optional<V> NatarajanTree<K,V>::remove(K key, int tid){
+V NatarajanTree<K,V>::remove(K key, int tid){
 	bool injecting = true;
-	optional<V> res={};
-	SeekRecord* seekRecord=&(records[tid].ui);
+	V res={};
+	SeekRecord* seekRecord=&(records[tid]);
 
 	Node keyNode{key,defltV,nullptr,nullptr};//node to be compared
 	
@@ -544,9 +547,9 @@ optional<V> NatarajanTree<K,V>::remove(K key, int tid){
 }
 
 template <class K, class V>
-optional<V> NatarajanTree<K,V>::replace(K key, V val, int tid){
-	optional<V> res={};
-	SeekRecord* seekRecord=&(records[tid].ui);
+V NatarajanTree<K,V>::replace(K key, V val, int tid){
+	V res={};
+	SeekRecord* seekRecord=&(records[tid]);
 
 	Node* newInternal=nullptr;
 	Node* newLeaf=Node::alloc(key,val,nullptr,nullptr,memory_tracker,tid);//also to compare keys

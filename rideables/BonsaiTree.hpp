@@ -86,7 +86,7 @@ private:
 	static __thread int local_tid;
 
 	Node* protect_read(std::atomic<Node*>& read);
-	optional<V> update(Operation op, K key, V val, int tid);
+	V update(Operation op, K key, V val, int tid);
 	Node* doInsert(Node* state, Node* root, K key, V value, bool* ret);
 	Node* doPut(Node* state, Node* root, K key, V value, V** ori_val);
 	Node* doReplace(Node* state, Node* root, K key, V value, V** ori_val);
@@ -129,24 +129,24 @@ private:
 
 
 public:
-	BonsaiTree(GlobalTestConfig* gtc);
+	BonsaiTree();
 	~BonsaiTree();
 
 	unsigned long treeSize();
 
-	optional<V> get(K key, int tid);
-	optional<V> put(K key, V val, int tid);
+	V get(K key, int tid);
+	V put(K key, V val, int tid);
 	bool insert(K key, V val, int tid);
-	optional<V> remove(K key, int tid);
-	optional<V> replace(K key, V val, int tid);
+	V remove(K key, int tid);
+	V replace(K key, V val, int tid);
 	std::map<K, V> rangeQuery(K key1, K key2, int& len, int tid);
 };
 
 
 
 template <class K, class V> class BonsaiTreeFactory : public RideableFactory{
-	BonsaiTree<K, V>* build(GlobalTestConfig* gtc){
-		return new BonsaiTree<K, V>(gtc);
+	BonsaiTree<K, V>* build(){
+		return new BonsaiTree<K, V>();
 	}
 };
 

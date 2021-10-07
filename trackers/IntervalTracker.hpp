@@ -25,6 +25,7 @@ limitations under the License.
 #include <list>
 #include <vector>
 #include <atomic>
+#include <cassert>
 // #include "ConcurrentPrimitives.hpp"
 // #include "RAllocator.hpp"
 

@@ -77,12 +77,13 @@ BonsaiTree<K, V>::Node::~Node() {
 
 /* routines under BonsaiTree */
 template<class K, class V>
-BonsaiTree<K, V>::BonsaiTree(GlobalTestConfig* gtc): RetiredMonitorable(gtc){
-	std::string type = gtc->getEnv("tracker");
-	if (type == "Hazard" || type == "HE") errexit("Hazard and HE not available ");
-	int epochf = gtc->getEnv("epochf").empty()? 150:stoi(gtc->getEnv("epochf"));
-	int emptyf = gtc->getEnv("emptyf").empty()? 30:stoi(gtc->getEnv("emptyf"));
-	memory_tracker = new MemoryTracker<Node>(gtc, epochf, emptyf, 2, true);
+BonsaiTree<K, V>::BonsaiTree(): RetiredMonitorable(){
+	// TODO: support get |tracker_type| in |MemoryTracker|
+	// std::string type = gtc->getEnv("tracker");
+	// if (type == "Hazard" || type == "HE") errexit("Hazard and HE not available ");
+	int epochf = 150;
+	int emptyf = 30;
+	memory_tracker = new MemoryTracker<Node>(epochf, emptyf, 2);
 	//initialize with an empty head state.
 	local_tid = 0;
 	curr_state.store(mkState());
@@ -178,15 +179,15 @@ typename BonsaiTree<K, V>::Node* BonsaiTree<K, V>::protect_read(atomic<BonsaiTre
 }
 
 template<class K, class V>
-optional<V> BonsaiTree<K, V>::update(Operation op, K key, V val, int tid){
+V BonsaiTree<K, V>::update(Operation op, K key, V val, int tid){
 	V* ori_val = NULL;
-	optional<V> nf = {};
-	optional<V> ret;
+	V nf = {};
+	V ret;
 	bool ins_ret=false;
 
 	Node* old_state;
 	Node* new_state;
-	Node* new_root;
+	// Node* new_root;
 
 	local_tid = tid;
 	collect_retired_size(memory_tracker->get_retired_cnt(tid), tid);
@@ -217,7 +218,8 @@ optional<V> BonsaiTree<K, V>::update(Operation op, K key, V val, int tid){
 				ori_val = (ins_ret)? NULL : new V();
 				break;
 			default:
-				assert(false && "operation type error.");
+				fprintf(stderr, "operation type %d error.", op);
+				exit(EXIT_FAILURE);
 		}
 		if (new_state->state->root == retired_node){
 			if (ori_val) delete ori_val;
@@ -261,26 +263,26 @@ optional<V> BonsaiTree<K, V>::update(Operation op, K key, V val, int tid){
 
 template<class K, class V>
 bool BonsaiTree<K, V>::insert(K key, V val, int tid){
-	return (!update(op_insert, key, val, tid));
+	// return (!update(op_insert, key, val, tid)); // TODO: remove |optional|
 }
 
 template<class K, class V>
-optional<V> BonsaiTree<K, V>::put(K key, V val, int tid){
+V BonsaiTree<K, V>::put(K key, V val, int tid){
 	return update(op_put, key, val, tid);
 }
 
 template<class K, class V>
-optional<V> BonsaiTree<K, V>::replace(K key, V val, int tid){
+V BonsaiTree<K, V>::replace(K key, V val, int tid){
 	return update(op_replace, key, val, tid);
 }
 
 template<class K, class V>
-optional<V> BonsaiTree<K, V>::remove(K key,int tid){
+V BonsaiTree<K, V>::remove(K key,int tid){
 	return update(op_remove, key, V(), tid);
 }
 
 template<class K, class V>
-optional<V> BonsaiTree<K, V>::get(K key, int tid){//TODO: new version needed.
+V BonsaiTree<K, V>::get(K key, int tid){//TODO: new version needed.
 	V ret;
 	collect_retired_size(memory_tracker->get_retired_cnt(tid), tid);
 	memory_tracker->start_op(tid);
@@ -490,7 +492,7 @@ template<class K, class V>
 typename BonsaiTree<K, V>::Node* BonsaiTree<K, V>::mkBalancedL(BonsaiTree<K, V>::Node* state, 
 	BonsaiTree<K, V>::Node* left, BonsaiTree<K, V>::Node* right, K key, V value){
 	assert(right!=NULL);
-	BonsaiTree<K, V>::Node* out;
+	// BonsaiTree<K, V>::Node* out;
 	Node* right_left = protect_read(right->left);
 	Node* right_right = protect_read(right->right);
 	if (retiredNodeSpot(right_left) || retiredNodeSpot(right_right)){
