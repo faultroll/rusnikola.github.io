@@ -21,24 +21,15 @@ limitations under the License.
 #define SORTED_UNORDEREDMAP_RANGE
 
 #include <atomic>
-#include "Harness.hpp"
-#include "ConcurrentPrimitives.hpp"
+// #include "Harness.hpp"
+// #include "ConcurrentPrimitives.hpp"
 #include "RUnorderedMap.hpp"
-
 #include "RangeTracker.hpp"
-// #include "RangeTracker.hpp"
-
 #include "RetiredMonitorable.hpp"
 #include <functional>
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
-
-#ifdef NGC
-#define COLLECT false
-#else
-#define COLLECT true
-#endif
 
 template <class K, class V>
 class SortedUnorderedMapRange : public RUnorderedMap<K,V>, public RetiredMonitorable{

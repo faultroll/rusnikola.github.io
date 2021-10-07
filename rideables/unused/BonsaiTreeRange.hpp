@@ -24,12 +24,9 @@ limitations under the License.
 #include <atomic>
 #include <string>
 #include <list>
-#include "Harness.hpp"
+// #include "Harness.hpp"
 #include "ROrderedMap.hpp"
-
 #include "RangeTracker.hpp"
-// #include "RangeTracker.hpp"
-
 #include "RetiredMonitorable.hpp"
 
 #define WEIGHT 2 //TODO: make it a variable later.

@@ -46,8 +46,11 @@ limitations under the License.
 #include "RangeTrackerTP.hpp"
 #endif */
 
-
-
+#ifdef NGC
+#define COLLECT false
+#else
+#define COLLECT true
+#endif
 
 enum TrackerType{
 	NIL = 0,
@@ -91,7 +94,8 @@ private:
 	TrackerType type = NIL;
 	int** slot_renamers = NULL; // padded
 public:
-	MemoryTracker(int epoch_freq, int empty_freq, int slot_num, bool collect){
+	MemoryTracker(int epoch_freq, int empty_freq, int slot_num){
+		bool collect = COLLECT;
 		// count_retired_ = gtc->count_retired_;
 		int task_num = task_num_; // gtc->task_num + gtc->task_stall;
 		std::string tracker_type = "Hazard"; // gtc->getEnv("tracker");

@@ -20,16 +20,10 @@ limitations under the License.
 
 #include "SortedUnorderedMapStall.hpp"
 
-#ifdef NGC
-#define COLLECT false
-#else
-#define COLLECT true
-#endif
-
 template <class K, class V>
 class LinkListStallFactory : public RideableFactory{
-	SortedUnorderedMapStall<K,V>* build(GlobalTestConfig* gtc){
-		return new SortedUnorderedMapStall<K,V>(gtc,1);
+	SortedUnorderedMapStall<K,V>* build(){
+		return new SortedUnorderedMapStall<K,V>(1);
 	}
 };
 

@@ -22,16 +22,10 @@ limitations under the License.
 
 #include "SortedUnorderedMapRange.hpp"
 
-#ifdef NGC
-#define COLLECT false
-#else
-#define COLLECT true
-#endif
-
 template <class K, class V>
 class LinkListRangeFactory : public RideableFactory{
-	SortedUnorderedMapRange<K,V>* build(GlobalTestConfig* gtc){
-		return new SortedUnorderedMapRange<K,V>(gtc,1);
+	SortedUnorderedMapRange<K,V>* build(){
+		return new SortedUnorderedMapRange<K,V>(1);
 	}
 };
 

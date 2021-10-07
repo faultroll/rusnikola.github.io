@@ -19,22 +19,16 @@ limitations under the License.
 #define SORTED_UNORDEREDMAP_STALL
 
 #include <atomic>
-#include "Harness.hpp"
-#include "ConcurrentPrimitives.hpp"
+// #include "Harness.hpp"
+// #include "ConcurrentPrimitives.hpp"
 #include "RUnorderedMap.hpp"
-#include "HazardTracker.hpp"
+// #include "HazardTracker.hpp"
 #include "MemoryTracker.hpp"
 #include "RetiredMonitorable.hpp"
 #include <functional>
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
-
-#ifdef NGC
-#define COLLECT false
-#else
-#define COLLECT true
-#endif
 
 template <class K, class V>
 class SortedUnorderedMapStall : public RUnorderedMap<K,V>, public RetiredMonitorable{

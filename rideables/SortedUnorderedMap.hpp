@@ -32,12 +32,6 @@ limitations under the License.
 #include <stdlib.h>
 #include <iostream>
 
-#ifdef NGC
-#define COLLECT false
-#else
-#define COLLECT true
-#endif
-
 template <class K, class V>
 class SortedUnorderedMap : public RUnorderedMap<K,V>, public RetiredMonitorable{
 	struct Node;
@@ -83,7 +77,7 @@ public:
         int epochf = 150;
         int emptyf = 30;
 		std::cout<<"epochf:"<<epochf<<", emptyf:"<<emptyf<<std::endl;
-		memory_tracker = new MemoryTracker<Node>(epochf, emptyf, 3, COLLECT);
+		memory_tracker = new MemoryTracker<Node>(epochf, emptyf, 3);
 		this->setBaseMT(memory_tracker);
 	}
 	~SortedUnorderedMap(){};

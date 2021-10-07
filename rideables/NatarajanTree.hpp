@@ -23,25 +23,20 @@ limitations under the License.
 #include <iostream>
 #include <atomic>
 #include <algorithm>
-#include "Harness.hpp"
-#include "ConcurrentPrimitives.hpp"
+// #include "Harness.hpp"
+// #include "ConcurrentPrimitives.hpp"
 #include "ROrderedMap.hpp"
-#include "HazardTracker.hpp"
-#include "RUnorderedMap.hpp"
-// #include "ssmem.h"
+// #include "HazardTracker.hpp"
+// #include "RUnorderedMap.hpp"
 #include "MemoryTracker.hpp"
 #include "RetiredMonitorable.hpp"
 
 // //GC Method: ssmem from LPD-EPFL
+// #include "ssmem.h"
 // #ifdef NGC
 // #define ssmem_alloc(x,y) malloc(y)
 // #define ssmem_free(x,y)
 // #endif
-#ifdef NGC
-#define COLLECT false
-#else
-#define COLLECT true
-#endif
 
 template <class K, class V>
 class NatarajanTree : public ROrderedMap<K,V>, public RetiredMonitorable{
