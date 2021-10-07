@@ -1,14 +1,13 @@
 
 #include "rideables/SGLUnorderedMap.hpp"
 #include "rideables/SortedUnorderedMap.hpp"
-// #include "rideables/SortedUnorderedMapStall.hpp"
 #include "rideables/LinkList.hpp"
-// #include "rideables/LinkListStall.hpp"
 // #include "rideables/BonsaiTree.hpp"
 // #include "rideables/NatarajanTree.hpp"
 
 int count_retired_ = 0;
-int task_num_ = 32;
+int task_num_ = 24; // total thread number
+int task_stall_ = 8; // stall threads
 
 int main(void)
 {

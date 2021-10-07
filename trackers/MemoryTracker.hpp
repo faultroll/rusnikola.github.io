@@ -97,7 +97,7 @@ public:
 	MemoryTracker(int epoch_freq, int empty_freq, int slot_num){
 		bool collect = COLLECT;
 		// count_retired_ = gtc->count_retired_;
-		int task_num = task_num_; // gtc->task_num + gtc->task_stall;
+		int task_num = task_num_; // gtc->task_num+gtc->task_stall;
 		std::string tracker_type = "Hazard"; // gtc->getEnv("tracker");
 		if (tracker_type.empty()){
 			tracker_type = "RCU";

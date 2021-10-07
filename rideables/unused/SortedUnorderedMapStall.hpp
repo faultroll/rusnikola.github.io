@@ -30,6 +30,9 @@ limitations under the License.
 #include <stdlib.h>
 #include <iostream>
 
+extern int task_num_;
+extern int task_stall_;
+
 template <class K, class V>
 class SortedUnorderedMapStall : public RUnorderedMap<K,V>, public RetiredMonitorable{
 	struct Node;
@@ -52,7 +55,7 @@ private:
 	int task_stall;
 	int task_num;
 	const int idxSize;
-	padded<MarkPtr>* bucket=new padded<MarkPtr>[idxSize]{};
+	MarkPtr* bucket=new MarkPtr[idxSize]{}; // padded
 	bool findNode(MarkPtr* &prev, Node* &cur, Node* &nxt, K key, int tid);
 	
 	MemoryTracker<Node>* memory_tracker;
@@ -72,16 +75,16 @@ private:
 	}
 
 public:
-	SortedUnorderedMapStall(GlobalTestConfig* gtc,int idx_size):
-		RetiredMonitorable(gtc),idxSize(idx_size){
-        task_stall = gtc->task_stall;
-        task_num = gtc->task_num;
-        int epochf = gtc->getEnv("epochf").empty()? 150:stoi(gtc->getEnv("epochf"));
-        int emptyf = gtc->getEnv("emptyf").empty()? 30:stoi(gtc->getEnv("emptyf"));
-		std::cout<<"emptyf:"<<emptyf<<std::endl;
-		memory_tracker = new MemoryTracker<Node>(gtc, epochf, emptyf, 3, COLLECT);
+	SortedUnorderedMapStall(int idx_size):
+		RetiredMonitorable(),idxSize(idx_size){
+        int epochf = 150;
+        int emptyf = 30;
+		std::cout<<"epochf:"<<epochf<<", emptyf:"<<emptyf<<std::endl;
+		memory_tracker = new MemoryTracker<Node>(epochf, emptyf, 3, COLLECT);
 		this->setBaseMT(memory_tracker);
-		// Stall threads
+		// Stall threads // TODO: remove this, data structures shouldn't have stall attr
+        task_stall = task_stall_; // gtc->task_stall;
+        task_num = task_num_-task_stall_; // gtc->task_num;
 		for (int i = 0; i < task_stall; i++) {
 			memory_tracker->start_op(task_num + i);
 		}
@@ -94,27 +97,27 @@ public:
 	}
 
 
-	optional<V> get(K key, int tid);
-	optional<V> put(K key, V val, int tid);
+	V get(K key, int tid);
+	V put(K key, V val, int tid);
 	bool insert(K key, V val, int tid);
-	optional<V> remove(K key, int tid);
-	optional<V> replace(K key, V val, int tid);
+	V remove(K key, int tid);
+	V replace(K key, V val, int tid);
 };
 
 template <class K, class V> 
 class SortedUnorderedMapStallFactory : public RideableFactory{
-	SortedUnorderedMapStall<K,V>* build(GlobalTestConfig* gtc){
-		return new SortedUnorderedMapStall<K,V>(gtc,30000);
+	SortedUnorderedMapStall<K,V>* build(){
+		return new SortedUnorderedMapStall<K,V>(30000);
 	}
 };
 
 //-------Definition----------
 template <class K, class V> 
-optional<V> SortedUnorderedMapStall<K,V>::get(K key, int tid) {
+V SortedUnorderedMapStall<K,V>::get(K key, int tid) {
 	MarkPtr* prev=nullptr;
 	Node* cur=nullptr;
 	Node* nxt=nullptr;
-	optional<V> res={};
+	V res={};
 
 	collect_retired_size(memory_tracker->get_retired_cnt(tid), tid);
 
@@ -128,12 +131,12 @@ optional<V> SortedUnorderedMapStall<K,V>::get(K key, int tid) {
 }
 
 template <class K, class V> 
-optional<V> SortedUnorderedMapStall<K,V>::put(K key, V val, int tid) {
+V SortedUnorderedMapStall<K,V>::put(K key, V val, int tid) {
 	Node* tmpNode = nullptr;
 	MarkPtr* prev=nullptr;
 	Node* cur=nullptr;
 	Node* nxt=nullptr;
-	optional<V> res={};
+	V res={};
 	tmpNode = mkNode(key, val, nullptr, tid);
 
 	collect_retired_size(memory_tracker->get_retired_cnt(tid), tid);
@@ -199,11 +202,11 @@ bool SortedUnorderedMapStall<K,V>::insert(K key, V val, int tid){
 }
 
 template <class K, class V> 
-optional<V> SortedUnorderedMapStall<K,V>::remove(K key, int tid) {
+V SortedUnorderedMapStall<K,V>::remove(K key, int tid) {
 	MarkPtr* prev=nullptr;
 	Node* cur=nullptr;
 	Node* nxt=nullptr;
-	optional<V> res={};
+	V res={};
 
 	collect_retired_size(memory_tracker->get_retired_cnt(tid), tid);
 
@@ -230,12 +233,12 @@ optional<V> SortedUnorderedMapStall<K,V>::remove(K key, int tid) {
 }
 
 template <class K, class V> 
-optional<V> SortedUnorderedMapStall<K,V>::replace(K key, V val, int tid) {
+V SortedUnorderedMapStall<K,V>::replace(K key, V val, int tid) {
 	Node* tmpNode = nullptr;
 	MarkPtr* prev=nullptr;
 	Node* cur=nullptr;
 	Node* nxt=nullptr;
-	optional<V> res={};
+	V res={};
 	tmpNode = mkNode(key, val, nullptr, tid);
 
 	collect_retired_size(memory_tracker->get_retired_cnt(tid), tid);
@@ -273,7 +276,7 @@ bool SortedUnorderedMapStall<K,V>::findNode(MarkPtr* &prev, Node* &cur, Node* &n
 	while(true){
 		size_t idx=hash_fn(key)%idxSize;
 		bool cmark=false;
-		prev=&bucket[idx].ui;
+		prev=&bucket[idx];
 
 		cur=getPtr(memory_tracker->read(prev->ptr, 1, tid));
 
