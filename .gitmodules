@@ -1,0 +1,4 @@
+[submodule "c11runtime"]
+	path = c11runtime
+	url = git@github.com:faultroll/ssr.git
+	branch = c11runtime
