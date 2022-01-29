@@ -8,12 +8,13 @@ strip  := $(prfx)strip
 
 name    := memory_tracker
 srcs    := test.cpp rideables/BonsaiTree.cpp gettid.c # $(wildcard *.c) $(wildcard *.cpp)
+srcs    += $(wildcard features/*.c)
 objs    := $(patsubst %.c,%.o,$(filter %.c, $(srcs))) \
            $(patsubst %.cpp,%.o,$(filter %.cpp, $(srcs)))
 deps    := $(patsubst %.o,%.d,$(objs))
 libs    := -lpthread # -latomic
 cflags  := -I. -I./rideables -I./trackers -Wno-unused-parameter \
-           -I./c11runtime
+cflags  += -I./features
 ldflags := 
 common_cflags  := -Os -Wall -Wextra -fPIC
 common_ldflags := -Wl,--gc-sections -Wl,--as-needed -Wl,--export-dynamic
