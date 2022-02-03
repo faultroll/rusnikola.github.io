@@ -14,7 +14,7 @@ objs    := $(patsubst %.c,%.o,$(filter %.c, $(srcs))) \
 deps    := $(patsubst %.o,%.d,$(objs))
 libs    := -lpthread # -latomic
 cflags  := -I. -I./rideables -I./trackers -Wno-unused-parameter
-cflags  += -I./features -DWEBRTC_POSIX -D_POSIX_C_SOURCE=200809L
+cflags  += -I./features -DWEBRTC_POSIX
 ldflags := 
 common_cflags  := -Os -Wall -Wextra -fPIC
 common_ldflags := -Wl,--gc-sections -Wl,--as-needed -Wl,--export-dynamic
@@ -43,7 +43,7 @@ $(name).elf : $(objs)
 	$(info $(cxx) $(notdir $^) -o $(notdir $@))
 
 %.o : %.c
-	@$(cc) $(common_cflags) $(cflags) -std=c11 -Wpedantic -c $< -o $@ -MMD -MF $*.d -MP
+	@$(cc) $(common_cflags) $(cflags) -std=c11 -D_POSIX_C_SOURCE=200809L -Wpedantic -c $< -o $@ -MMD -MF $*.d -MP
 	$(info $(cc) -c $(notdir $<) -o $(notdir $@))
 %.o : %.cpp
 	@$(cxx) $(common_cflags) $(cflags) -std=c++11 -fpermissive -c $< -o $@ -MMD -MF $*.d -MP
