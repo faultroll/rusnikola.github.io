@@ -6,15 +6,15 @@ ar     := $(prfx)ar
 ranlib := $(prfx)ranlib
 strip  := $(prfx)strip
 
-name    := memory_tracker
+name    := mtracker
 srcs    := test.cpp rideables/BonsaiTree.cpp gettid.c # $(wildcard *.c) $(wildcard *.cpp)
 srcs    += $(wildcard features/*.c)
 objs    := $(patsubst %.c,%.o,$(filter %.c, $(srcs))) \
            $(patsubst %.cpp,%.o,$(filter %.cpp, $(srcs)))
 deps    := $(patsubst %.o,%.d,$(objs))
 libs    := -lpthread # -latomic
-cflags  := -I. -I./rideables -I./trackers -Wno-unused-parameter \
-cflags  += -I./features
+cflags  := -I. -I./rideables -I./trackers -Wno-unused-parameter
+cflags  += -I./features -DWEBRTC_POSIX -D_POSIX_C_SOURCE=200809L
 ldflags := 
 common_cflags  := -Os -Wall -Wextra -fPIC
 common_ldflags := -Wl,--gc-sections -Wl,--as-needed -Wl,--export-dynamic
