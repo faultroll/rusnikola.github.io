@@ -3,6 +3,7 @@
 #define _MTRACKER_H
 
 // #include <stddef.h>
+#include <stdbool.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -27,18 +28,28 @@ typedef enum {
     // FORK = 13,
 } mt_Type;
 
-mt_Inst *mt_Create(mt_Type type, int task_num, int epoch_freq, int empty_freq, int slot_num);
+typedef struct {
+    int task_num;
+    int slot_num;
+    int epoch_freq;
+    int empty_freq;
+    bool collect;
+    bool count_retired;
+} mt_Config;
+
+// tid: task_idx, sid: slot_idx
+mt_Inst *mt_Create(mt_Type type, mt_Config config);
 void    mt_Destroy(mt_Inst *handle);
 void    *mt_Alloc(mt_Inst *handle, int tid);
 void    mt_Reclaim(mt_Inst *handle, int tid, void *mem); // free
-void    *mt_Read(mt_Inst *handle, int tid, int slot_idx); // acquire
+void    *mt_Read(mt_Inst *handle, int tid, int sid, void *mem); // acquire
 void    mt_Retire(mt_Inst *handle, int tid, void *mem); // release
 void    mt_StartOp(mt_Inst *handle, int tid); // enter
 void    mt_EndOp(mt_Inst *handle, int tid); // leave
 // void    mt_LastEndOp(mt_Inst *handle, int tid); // last leave
 void    mt_ClearAll(mt_Inst *handle); // leave all (EndOp all tid)
-// void    mt_Transfer(mt_Inst *handle, int src_slot_idx, int dst_slot_idx, int tid);
-// void    mt_Release(mt_Inst *handle, int tid, int slot_idx);
+// void    mt_Transfer(mt_Inst *handle, int tid, int src_sid, int dst_sid);
+// void    mt_Release(mt_Inst *handle, int tid, int sid);
 
 #if defined(__cplusplus)
 }

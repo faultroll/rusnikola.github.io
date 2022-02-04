@@ -9,6 +9,8 @@ strip  := $(prfx)strip
 name    := mtracker
 srcs    := test.cpp rideables/BonsaiTree.cpp gettid.c # $(wildcard *.c) $(wildcard *.cpp)
 srcs    += $(wildcard features/*.c)
+srcs    += mtracker.c \
+           trackers/mtracker_base.c
 objs    := $(patsubst %.c,%.o,$(filter %.c, $(srcs))) \
            $(patsubst %.cpp,%.o,$(filter %.cpp, $(srcs)))
 deps    := $(patsubst %.o,%.d,$(objs))
