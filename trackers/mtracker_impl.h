@@ -43,7 +43,7 @@ struct mt_Inst {
         mt_StartOpFunc  start_op_func;
         mt_EndOpFunc    end_op_func;
         mt_ClearAllFunc clear_all_func;
-    }; // anonymous structure (mt_Func)
+    }; // anonymous (mt_Func)
     // handle for tracker impl
     mt_Core *core;
     // Used for transfer

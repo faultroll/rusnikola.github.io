@@ -2,8 +2,8 @@
 #ifndef _MTRACKER_H
 #define _MTRACKER_H
 
-// #include <stddef.h>
-#include <stdbool.h>
+#include <stddef.h> // size_t
+#include <stdbool.h> // bool
 
 #if defined(__cplusplus)
 extern "C" {
@@ -33,14 +33,19 @@ typedef struct {
     int slot_num;
     int epoch_freq;
     int empty_freq;
-    bool collect;
-    bool count_retired;
+    bool collect; // tracker really works? or just dummy
+    struct {
+        // if we use malloc, we don't know it's size
+        // and may have its own destroyer rather than just free
+        size_t ctor_size;
+        void (*dtor_func)(void *);
+    }; // anonymous (mt_MemDes)
 } mt_Config;
 
 // tid: task_idx, sid: slot_idx
 mt_Inst *mt_Create(mt_Type type, mt_Config config);
 void    mt_Destroy(mt_Inst *handle);
-void    *mt_Alloc(mt_Inst *handle, int tid);
+void    *mt_Alloc(mt_Inst *handle, int tid); // malloc
 void    mt_Reclaim(mt_Inst *handle, int tid, void *mem); // free
 void    *mt_Read(mt_Inst *handle, int tid, int sid, void *mem); // acquire
 void    mt_Retire(mt_Inst *handle, int tid, void *mem); // release

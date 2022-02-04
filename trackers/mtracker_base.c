@@ -5,7 +5,7 @@
 
 struct mt_Core {
     // private:
-    int task_num;
+    mt_Config config;
     // public:
     // ATOMIC_VAR(int64_t) retired; // padded
 };
@@ -31,7 +31,7 @@ static void dec_retired(int tid)
 static mt_Core *mt_CoreCreate(mt_Config config)
 {
     mt_Core *core = malloc(sizeof(mt_Core));
-    core->task_num = config.task_num;
+    core->config = config;
 
     return core;
 }
@@ -41,19 +41,16 @@ static void mt_CoreDestroy(mt_Core *core)
 }
 static void *mt_CoreAlloc(mt_Core *core, int tid)
 {
-    // return malloc(sizeof(T));
-    return NULL;
+    return malloc(core->config.ctor_size);
 }
 static void mt_CoreReclaim(mt_Core *core, int tid, void *mem)
 {
-    /* assert(mem != NULL);
-    mem->~T();
-    free(mem); */
+    core->config.dtor_func(mem);
+    free(mem);
 }
 static void *mt_CoreRead(mt_Core *core, int tid, int sid, void *mem)
 {
-    // return mem.load(std::memory_order_acquire);
-    return mem;
+    return mem; // ATOMIC_VAR_LOAD
 }
 static void mt_CoreRetire(mt_Core *core, int tid, void *mem)
 {
