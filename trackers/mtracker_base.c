@@ -41,12 +41,11 @@ static void mt_CoreDestroy(mt_Core *core)
 }
 static void *mt_CoreAlloc(mt_Core *core, int tid)
 {
-    return malloc(core->config.ctor_size);
+    return core->config.ctor_func(core->config.mem_size);
 }
 static void mt_CoreReclaim(mt_Core *core, int tid, void *mem)
 {
     core->config.dtor_func(mem);
-    free(mem);
 }
 static void *mt_CoreRead(mt_Core *core, int tid, int sid, void *mem)
 {

@@ -37,8 +37,9 @@ typedef struct {
     struct {
         // if we use malloc, we don't know it's size
         // and may have its own destroyer rather than just free
-        size_t ctor_size;
-        void (*dtor_func)(void *);
+        size_t mem_size;
+        void *(*ctor_func)(size_t); // malloc
+        void (*dtor_func)(void *); // free
     }; // anonymous (mt_MemDes)
 } mt_Config;
 
