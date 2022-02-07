@@ -16,89 +16,59 @@ mt_Inst *mt_Create(mt_Type type, mt_Config config)
     // Default
     extern void mt_InitFuncBase(mt_Inst * handle);
     mt_InitFuncBase(handle);
-#if 0
     // Override
     switch (type) {
-        case RCU:
+        case RCU: {
             extern void mt_InitFuncRCU(mt_Inst * handle);
             mt_InitFuncRCU(handle);
             break;
-        case RangeNew:
-            extern void mt_InitFuncRangeNew(mt_Inst * handle);
-            mt_InitFuncRangeNew(handle);
-            break;
-        case Hazard:
-            extern void mt_InitFuncHazard(mt_Inst * handle);
-            mt_InitFuncHazard(handle);
-            break;
-        case WFE:
-            extern void mt_InitFuncWFE(mt_Inst * handle);
-            mt_InitFuncWFE(handle);
-            break;
-        case HE:
-            extern void mt_InitFuncHE(mt_Inst * handle);
-            mt_InitFuncHE(handle);
-            break;
-        case QSBR:
+        }
+        case QSBR: {
             extern void mt_InitFuncQSBR(mt_Inst * handle);
             mt_InitFuncQSBR(handle);
             break;
-        case Interval:
+        }
+#if 0
+        case RangeNew: {
+            extern void mt_InitFuncRangeNew(mt_Inst * handle);
+            mt_InitFuncRangeNew(handle);
+            break;
+        }
+        case Hazard: {
+            extern void mt_InitFuncHazard(mt_Inst * handle);
+            mt_InitFuncHazard(handle);
+            break;
+        }
+        case WFE: {
+            extern void mt_InitFuncWFE(mt_Inst * handle);
+            mt_InitFuncWFE(handle);
+            break;
+        }
+        case HE: {
+            extern void mt_InitFuncHE(mt_Inst * handle);
+            mt_InitFuncHE(handle);
+            break;
+        }
+        case Interval: {
             extern void mt_InitFuncInterval(mt_Inst * handle);
             mt_InitFuncInterval(handle);
             break;
+        }
 #if !(__x86_64__ || __ppc64__) // only compile in 32 bit mode
-        case RangeTP:
+        case RangeTP: {
             extern void mt_InitFuncRangeTP(mt_Inst * handle);
             mt_InitFuncRangeTP(handle);
             break;
+        }
 #endif
+#endif // 0
         case NIL:
-        default:
+        default: {
             // No override
             fprintf(stderr, "constructor - tracker type %d error, use Base.", type);
             break;
+        }
     }
-#endif // 0
-#if 0
-    switch (type) {
-        case NIL:
-            extern mt_Core *mt_CreateBase(int task_num);
-            handle->core = mt_CreateBase(task_num);
-            break;
-        case RCU:
-            handle->core = mt_CreateRCU(task_num, epoch_freq, empty_freq, collect);
-            break;
-        case RangeNew:
-            handle->core = mt_CreateRangeNew(task_num, epoch_freq, empty_freq, collect);
-            break;
-        case Hazard:
-            handle->core = mt_CreateHazard(task_num, slot_num, empty_freq, collect);
-            break;
-        case WFE:
-            handle->core = mt_CreateWFE(task_num, slot_num, epoch_freq, empty_freq, collect);
-            break;
-        case HE:
-            handle->core = mt_CreateHE(task_num, slot_num, epoch_freq, empty_freq, collect);
-            break;
-        case QSBR:
-            handle->core = mt_CreateQSBR(task_num, epoch_freq, empty_freq, collect);
-            break;
-        case Interval:
-            handle->core = mt_CreateInterval(task_num, epoch_freq, empty_freq, collect);
-            break;
-#if !(__x86_64__ || __ppc64__) // only compile in 32 bit mode
-        case RangeTP:
-            handle->core = mt_CreateRangeTP(task_num, epoch_freq, empty_freq, collect);
-            break;
-#endif
-        default:
-            fprintf(stderr, "constructor - core type %d error.", type);
-            free(handle);
-            handle = NULL;
-            break;
-    }
-#endif // 0
 
     if (handle->create_func != NULL)
         handle->core = handle->create_func(config);

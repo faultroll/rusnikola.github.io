@@ -1,7 +1,7 @@
 
 #include "trackers/mtracker_impl.h"
 #include <stdlib.h>
-// #include "atmoic_c.h"
+// #include "atomic_c.h"
 
 struct mt_Core {
     // private:
@@ -41,11 +41,11 @@ static void mt_CoreDestroy(mt_Core *core)
 }
 static void *mt_CoreAlloc(mt_Core *core, int tid)
 {
-    return core->config.ctor_func(core->config.mem_size);
+    return core->config.alloc_func(core->config.mem_size);
 }
 static void mt_CoreReclaim(mt_Core *core, int tid, void *mem)
 {
-    core->config.dtor_func(mem);
+    core->config.free_func(mem);
 }
 static void *mt_CoreRead(mt_Core *core, int tid, int sid, void *mem)
 {
