@@ -1,7 +1,9 @@
 
 #include "trackers/mtracker_impl.h"
+#include <stdbool.h>
 #include <stdlib.h>
 #include "trackers/ssmem/include/ssmem.h"
+// #include "thread_c.h"
 
 struct mt_Core {
     // private:
@@ -9,6 +11,7 @@ struct mt_Core {
     mt_Config config;
     // public:
     ssmem_allocator_t **allocator;
+    bool *flag_inited; // once_flag
 };
 
 static mt_Core *mt_CoreCreate(mt_Config config)
@@ -21,19 +24,33 @@ static mt_Core *mt_CoreCreate(mt_Config config)
 
     int task_num = core->config.task_num;
     core->allocator = malloc(sizeof(ssmem_allocator_t *) * task_num);
+    core->flag_inited = malloc(sizeof(bool) * task_num);
     for (int i = 0; i < task_num; i++) {
-        ssmem_alloc_init(core->allocator[i], SSMEM_DEFAULT_MEM_SIZE, i);
+        // cannot init here, each thread init once
+        // ssmem_alloc_init(core->allocator[i], SSMEM_DEFAULT_MEM_SIZE, i);
+        core->flag_inited[i] = false; // ONCE_FLAG_INIT
     }
 
     return core;
 }
 static void mt_CoreDestroy(mt_Core *core)
 {
+    free(core->flag_inited);
     free(core->allocator);
     free(core);
 }
+// not found a way to xfer param, so bool flag instead
+/* static void mt_OnceInitAllocator(void)
+{
+    ssmem_alloc_init(core->allocator[tid], SSMEM_DEFAULT_MEM_SIZE, tid);
+} */
 static void *mt_CoreAlloc(mt_Core *core, int tid)
 {
+    // call_once(&core->flag_inited[tid], mt_OnceInitAllocator);
+    if (!core->flag_inited[tid]) {
+        ssmem_alloc_init(core->allocator[tid], SSMEM_DEFAULT_MEM_SIZE, tid);
+        core->flag_inited[tid] = true;
+    }
     return ssmem_alloc(core->allocator[tid], core->config.mem_size);
 }
 static void mt_CoreReclaim(mt_Core *core, int tid, void *mem)

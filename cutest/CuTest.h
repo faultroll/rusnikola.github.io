@@ -4,6 +4,10 @@
 #include <setjmp.h>
 #include <stdarg.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /* CuString */
 
 char* CuStrAlloc(int size);
@@ -110,5 +114,9 @@ void CuSuiteAddSuite(CuSuite* testSuite, CuSuite* testSuite2);
 void CuSuiteRun(CuSuite* testSuite);
 void CuSuiteSummary(CuSuite* testSuite, CuString* summary);
 void CuSuiteDetails(CuSuite* testSuite, CuString* details);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* CU_TEST_H */

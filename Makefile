@@ -12,6 +12,7 @@ srcs    += mtracker.c \
            trackers/mtracker_base.c trackers/mtracker_rcu.c
 # srcs    += $(wildcard features/*.c)
 srcs    += trackers/ssmem/src/ssmem.c trackers/mtracker_ssmem.c
+srcs    += cutest/CuTest.c
 objs    := $(patsubst %.c,%.o,$(filter %.c, $(srcs))) \
            $(patsubst %.cpp,%.o,$(filter %.cpp, $(srcs)))
 deps    := $(patsubst %.o,%.d,$(objs))
@@ -19,6 +20,7 @@ libs    := -lpthread # -latomic
 cflags  := -I. -I./rideables -I./trackers -Wno-unused-parameter
 cflags  += -I./features -DWEBRTC_POSIX
 cflags  += -I./trackers/ssmem/include
+cflags  += -I./cutest
 ldflags := 
 common_cflags  := -Os -Wall -Wextra -fPIC
 common_ldflags := -Wl,--gc-sections -Wl,--as-needed -Wl,--export-dynamic
