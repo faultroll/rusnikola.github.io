@@ -20,6 +20,7 @@ typedef enum {
     RangeNew = 8,
     QSBR = 10,
     // RangeTP = 12,
+    SSMEM = 14,
     //for HP-like trackers.
     Hazard = 1,
     // HazardDynamic = 3,

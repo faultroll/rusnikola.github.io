@@ -28,6 +28,11 @@ mt_Inst *mt_Create(mt_Type type, mt_Config config)
             mt_InitFuncQSBR(handle);
             break;
         }
+        case SSMEM: {
+            extern void mt_InitFuncSSMem(mt_Inst * handle);
+            mt_InitFuncSSMem(handle);
+            break;
+        }
 #if 0
         case RangeNew: {
             extern void mt_InitFuncRangeNew(mt_Inst * handle);

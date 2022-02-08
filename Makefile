@@ -8,18 +8,21 @@ strip  := $(prfx)strip
 
 name    := mtracker
 srcs    := test.cpp rideables/BonsaiTree.cpp gettid.c # $(wildcard *.c) $(wildcard *.cpp)
-srcs    += $(wildcard features/*.c)
 srcs    += mtracker.c \
-           trackers/mtracker_base.c trackers/mtracker_rcu.c 
+           trackers/mtracker_base.c trackers/mtracker_rcu.c
+srcs    += $(wildcard features/*.c)
+srcs    += trackers/ssmem/src/ssmem.c trackers/mtracker_ssmem.c
 objs    := $(patsubst %.c,%.o,$(filter %.c, $(srcs))) \
            $(patsubst %.cpp,%.o,$(filter %.cpp, $(srcs)))
 deps    := $(patsubst %.o,%.d,$(objs))
 libs    := -lpthread # -latomic
 cflags  := -I. -I./rideables -I./trackers -Wno-unused-parameter
 cflags  += -I./features -DWEBRTC_POSIX
+cflags  += -I./trackers/ssmem/include
 ldflags := 
 common_cflags  := -Os -Wall -Wextra -fPIC
 common_ldflags := -Wl,--gc-sections -Wl,--as-needed -Wl,--export-dynamic
+
 
 targets := $(name).elf
 all : $(targets)
