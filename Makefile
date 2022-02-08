@@ -10,7 +10,7 @@ name    := mtracker
 srcs    := test.cpp rideables/BonsaiTree.cpp gettid.c # $(wildcard *.c) $(wildcard *.cpp)
 srcs    += mtracker.c \
            trackers/mtracker_base.c trackers/mtracker_rcu.c
-srcs    += $(wildcard features/*.c)
+# srcs    += $(wildcard features/*.c)
 srcs    += trackers/ssmem/src/ssmem.c trackers/mtracker_ssmem.c
 objs    := $(patsubst %.c,%.o,$(filter %.c, $(srcs))) \
            $(patsubst %.cpp,%.o,$(filter %.cpp, $(srcs)))
