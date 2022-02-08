@@ -70,7 +70,7 @@ mt_Inst *mt_Create(mt_Type type, mt_Config config)
         case NIL:
         default: {
             // No override
-            fprintf(stderr, "constructor - tracker type %d error, use Base.", type);
+            fprintf(stderr, "constructor - tracker type %d error, use Base.\n", type);
             break;
         }
     }

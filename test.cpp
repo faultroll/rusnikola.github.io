@@ -31,6 +31,8 @@ int main(void)
 
 
 extern void TestMTCreateAndDestroy(CuTest *);
+extern void TestMTAllocAndReclaim(CuTest *);
+extern void TestMTWriteAndRead(CuTest *tc);
 
 void RunAllTests(void)
 {
@@ -38,6 +40,8 @@ void RunAllTests(void)
     CuSuite *suite = CuSuiteNew();
 
     SUITE_ADD_TEST(suite, TestMTCreateAndDestroy);
+    SUITE_ADD_TEST(suite, TestMTAllocAndReclaim);
+    SUITE_ADD_TEST(suite, TestMTWriteAndRead);
 
     CuSuiteRun(suite);
     CuSuiteSummary(suite, output);
@@ -62,6 +66,7 @@ void TestMTCreateAndDestroy(CuTest *tc)
     config.mem_size = sizeof(CuString);
     config.alloc_func = malloc;
     config.free_func = free;
+
     handle = mt_Create(NIL, config);
     CuAssertTrue(tc, handle != NULL);
     mt_Destroy(handle);
@@ -73,6 +78,57 @@ void TestMTCreateAndDestroy(CuTest *tc)
     mt_Destroy(handle);
     handle = mt_Create(SSMEM, config);
     CuAssertTrue(tc, handle != NULL);
+    mt_Destroy(handle);
+}
+void TestMTAllocAndReclaim(CuTest *tc)
+{
+    mt_Inst *handle = NULL;
+    mt_Config config;
+    config.task_num = 16;
+    config.slot_num = 4;
+    config.epoch_freq = 150;
+    config.empty_freq = 30;
+    config.collect = true;
+    config.mem_size = sizeof(CuString);
+    config.alloc_func = malloc;
+    config.free_func = free;
+    int tid = 0;
+    void *mem = NULL;
+
+    handle = mt_Create(SSMEM, config);
+    CuAssertTrue(tc, handle != NULL);
+    mem = mt_Alloc(handle, tid);
+    CuAssertTrue(tc, mem != NULL);
+    mt_Reclaim(handle, tid, mem);
+    mt_Destroy(handle);
+}
+void TestMTWriteAndRead(CuTest *tc)
+{
+    mt_Inst *handle = NULL;
+    mt_Config config;
+    config.task_num = 16;
+    config.slot_num = 4;
+    config.epoch_freq = 150;
+    config.empty_freq = 30;
+    config.collect = true;
+    config.mem_size = sizeof(CuString);
+    config.alloc_func = malloc;
+    config.free_func = free;
+    int tid = 0, sid = 2;
+    void *mem_alloc = NULL;
+    mt_Config *mem_read = NULL;
+
+    handle = mt_Create(SSMEM, config);
+    CuAssertTrue(tc, handle != NULL);
+    mem_alloc = mt_Alloc(handle, tid);
+    CuAssertTrue(tc, mem_alloc != NULL);
+    mem_read = (mt_Config *)mt_Read(handle, tid, sid, mem_alloc);
+    CuAssertTrue(tc, mem_read != NULL);
+    mem_read->mem_size = 0xdeafbeaf;
+    mem_read = (mt_Config *)mt_Read(handle, tid, sid, mem_alloc);
+    CuAssertTrue(tc, mem_read != NULL);
+    CuAssertTrue(tc, mem_read->mem_size == 0xdeafbeaf);
+    mt_Reclaim(handle, tid, mem_alloc);
     mt_Destroy(handle);
 }
 
