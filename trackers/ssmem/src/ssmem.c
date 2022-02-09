@@ -8,7 +8,7 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2014 Vasileios Trigonakis <vasileios.trigonakis@epfl.ch>
- *	      	      Distributed Programming Lab (LPD), EPFL
+ *                    Distributed Programming Lab (LPD), EPFL
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -36,10 +36,10 @@
 #include <assert.h>
 #include <string.h>
 
-ssmem_ts_t* ssmem_ts_list = NULL;
 volatile uint32_t ssmem_ts_list_len = 0;
+ssmem_ts_t* ssmem_ts_list = NULL;
 __thread volatile ssmem_ts_t* ssmem_ts_local = NULL;
-__thread size_t ssmem_num_allocators = 0;
+__thread size_t ssmem_num_allocators = 0; // ssmem_allocator_list_len
 __thread ssmem_list_t* ssmem_allocator_list = NULL;
 
 static inline int 
@@ -71,12 +71,12 @@ ssmem_gc_thread_init(ssmem_allocator_t* a, int id)
       a->ts->version = 0;
 
       do
-	{
-	  a->ts->next = ssmem_ts_list;
-	}
+        {
+          a->ts->next = ssmem_ts_list;
+        }
       while (CAS_U64((volatile uintptr_t*) &ssmem_ts_list, 
-		     (uintptr_t) a->ts->next, (uintptr_t) a->ts) 
-	     != (uintptr_t) a->ts->next);
+             (uintptr_t) a->ts->next, (uintptr_t) a->ts) 
+            != (uintptr_t) a->ts->next);
   
        __attribute__ ((unused)) uint32_t null = FAI_U32(&ssmem_ts_list_len);
     }
@@ -96,7 +96,7 @@ ssmem_alloc_init_fs_size(ssmem_allocator_t* a, size_t size, size_t free_set_size
   ssmem_num_allocators++;
   ssmem_allocator_list = ssmem_list_node_new((void*) a, ssmem_allocator_list);
 
-  if (id == 0)
+  if (ssmem_num_allocators == 0)
     {
       printf("[ALLOC] initializing allocator with fs size: %zu objects\n", free_set_size);
     }
@@ -191,7 +191,7 @@ ssmem_free_set_new(size_t size, ssmem_free_set_t* next)
   fs->curr = 0;
   
   fs->set = (uintptr_t*) (((uintptr_t) fs) + sizeof(ssmem_free_set_t));
-  fs->ts_set = NULL;	      /* will get a ts when it becomes full */
+  fs->ts_set = NULL;          /* will get a ts when it becomes full */
   fs->set_next = next;
 
   return fs;
@@ -246,6 +246,17 @@ ssmem_free_set_make_avail(ssmem_allocator_t* a, ssmem_free_set_t* set)
   a->available_set_list = set;
 }
 
+/* 
+ * 
+ */
+void
+ssmem_gc_thread_term()
+{
+  free((void*)ssmem_ts_local);
+  ssmem_ts_local = NULL;
+  free((void*)ssmem_allocator_list);
+  ssmem_allocator_list = NULL;
+}
 
 /* 
  * terminated allocator a and free its memory
@@ -254,7 +265,7 @@ void
 ssmem_alloc_term(ssmem_allocator_t* a)
 {
   /* printf("[ALLOC] term() : ~ total mem used: %zu bytes = %zu KB = %zu MB\n", */
-  /* 	 a->tot_size, a->tot_size / 1024, a->tot_size / (1024 * 1024)); */
+  /*      a->tot_size, a->tot_size / 1024, a->tot_size / (1024 * 1024)); */
   ssmem_list_t* mcur = a->mem_chunks;
   do
     {
@@ -286,9 +297,11 @@ ssmem_alloc_term(ssmem_allocator_t* a)
       prv->next = cur->next;
     }
 
+  /* no allocators in current thread, release local resources */
   if (--ssmem_num_allocators == 0)
     {
-      free(a->ts);
+      // free(a->ts);
+      ssmem_gc_thread_term();
     }
 
 
@@ -423,58 +436,58 @@ ssmem_alloc(ssmem_allocator_t* a, size_t size)
       PREFETCHW(m);
 
       if (cs->curr <= 0)
-	{
-	  a->collected_set_list = cs->set_next;
-	  a->collected_set_num--;
+        {
+          a->collected_set_list = cs->set_next;
+          a->collected_set_num--;
 
-	  ssmem_free_set_make_avail(a, cs);
-	}
+          ssmem_free_set_make_avail(a, cs);
+        }
     }
   else
     {
       if ((a->mem_curr + size) >= a->mem_size)
-	{
-#if SSMEM_MEM_SIZE_DOUBLE == 1
-	  a->mem_size <<= 1;
-	  if (a->mem_size > SSMEM_MEM_SIZE_MAX)
-	    {
-	      a->mem_size = SSMEM_MEM_SIZE_MAX;
-	    }
-#endif
-	  /* printf("[ALLOC] out of mem, need to allocate (chunk = %llu MB)\n", */
-	  /* 	 a->mem_size / (1LL<<20)); */
-	  if (size > a->mem_size)
-	    {
-	      /* printf("[ALLOC] asking for large mem. chunk\n"); */
-	      while (a->mem_size < size)
-		{
-		  if (a->mem_size > SSMEM_MEM_SIZE_MAX)
-		    {
-		      fprintf(stderr, "[ALLOC] asking for memory chunk larger than max (%llu MB) \n",
-			      SSMEM_MEM_SIZE_MAX / (1024 * 1024LL));
-		      assert(a->mem_size <= SSMEM_MEM_SIZE_MAX);
-		    }
-		  a->mem_size <<= 1;
-		}
-	      /* printf("[ALLOC] new mem size chunk is %llu MB\n", a->mem_size / (1024 * 1024LL)); */
-	    }
-#if SSMEM_TRANSPARENT_HUGE_PAGES
-	  int ret = posix_memalign(&a->mem, CACHE_LINE_SIZE, a->mem_size);
-	  assert(ret == 0);
-#else
-	  a->mem = (void*) memalign(CACHE_LINE_SIZE, a->mem_size);
-#endif
-	  assert(a->mem != NULL);
-#if SSMEM_ZERO_MEMORY
-	  memset(a->mem, 0, a->mem_size);
-#endif
+        {
+    #if SSMEM_MEM_SIZE_DOUBLE == 1
+          a->mem_size <<= 1;
+          if (a->mem_size > SSMEM_MEM_SIZE_MAX)
+            {
+              a->mem_size = SSMEM_MEM_SIZE_MAX;
+            }
+    #endif
+          /* printf("[ALLOC] out of mem, need to allocate (chunk = %llu MB)\n", */
+          /*      a->mem_size / (1LL<<20)); */
+          if (size > a->mem_size)
+            {
+              /* printf("[ALLOC] asking for large mem. chunk\n"); */
+              while (a->mem_size < size)
+                {
+                  if (a->mem_size > SSMEM_MEM_SIZE_MAX)
+                    {
+                      fprintf(stderr, "[ALLOC] asking for memory chunk larger than max (%llu MB) \n",
+                          SSMEM_MEM_SIZE_MAX / (1024 * 1024LL));
+                      assert(a->mem_size <= SSMEM_MEM_SIZE_MAX);
+                    }
+                  a->mem_size <<= 1;
+                }
+              /* printf("[ALLOC] new mem size chunk is %llu MB\n", a->mem_size / (1024 * 1024LL)); */
+            }
+    #if SSMEM_TRANSPARENT_HUGE_PAGES
+          int ret = posix_memalign(&a->mem, CACHE_LINE_SIZE, a->mem_size);
+          assert(ret == 0);
+    #else
+          a->mem = (void*) memalign(CACHE_LINE_SIZE, a->mem_size);
+    #endif
+          assert(a->mem != NULL);
+    #if SSMEM_ZERO_MEMORY
+          memset(a->mem, 0, a->mem_size);
+    #endif
 
-	  a->mem_curr = 0;
-      
-	  a->tot_size += a->mem_size;
+          a->mem_curr = 0;
 
-	  a->mem_chunks = ssmem_list_node_new(a->mem, a->mem_chunks);
-	}
+          a->tot_size += a->mem_size;
+
+          a->mem_chunks = ssmem_list_node_new(a->mem, a->mem_chunks);
+        }
 
       m = (void *)((uintptr_t)a->mem + a->mem_curr);
       a->mem_curr += size;
@@ -488,7 +501,7 @@ ssmem_alloc(ssmem_allocator_t* a, size_t size)
 
 
 /* return > 0 iff snew is > sold for each entry */
-static int			
+static int            
 ssmem_ts_compare(size_t* s_new, size_t* s_old)
 {
   int is_newer = 1;
@@ -496,10 +509,10 @@ ssmem_ts_compare(size_t* s_new, size_t* s_old)
   for (i = 0; i < ssmem_ts_list_len; i++)
     {
       if (s_new[i] <= s_old[i])
-	{
-	  is_newer = 0;
-	  break;
-	}
+        {
+          is_newer = 0;
+          break;
+        }
     }
   return is_newer;
 }
@@ -513,10 +526,10 @@ ssmem_ts_compare_3(size_t* s_1, size_t* s_2, size_t* s_3)
   for (i = 0; i < ssmem_ts_list_len; i++)
     {
       if (s_1[i] <= s_2[i] || s_2[i] <= s_3[i])
-	{
-	  is_newer = 0;
-	  break;
-	}
+        {
+          is_newer = 0;
+          break;
+        }
     }
   return is_newer;
 }
@@ -535,19 +548,19 @@ ssmem_mem_reclaim(ssmem_allocator_t* a)
       ssmem_released_t* rel_nxt = rel_cur->next;
 
       if (rel_nxt != NULL && ssmem_ts_compare(rel_cur->ts_set, rel_nxt->ts_set))
-	{
-	  rel_cur->next = NULL;
-	  a->released_num = 1;
-	  /* find and collect the memory */
-	  do
-	    {
-	      rel_cur = rel_nxt;
-	      free(rel_cur->mem);
-	      free(rel_cur);
-	      rel_nxt = rel_nxt->next;
-	    }
-	  while (rel_nxt != NULL);
-	}
+        {
+          rel_cur->next = NULL;
+          a->released_num = 1;
+          /* find and collect the memory */
+          do
+            {
+              rel_cur = rel_nxt;
+              free(rel_cur->mem);
+              free(rel_cur);
+              rel_nxt = rel_nxt->next;
+            }
+          while (rel_nxt != NULL);
+        }
     }
 
   ssmem_free_set_t* fs_cur = a->free_set_list;
@@ -558,7 +571,7 @@ ssmem_mem_reclaim(ssmem_allocator_t* a)
   ssmem_free_set_t* fs_nxt = fs_cur->set_next;
   int gced_num = 0;
 
-  if (fs_nxt == NULL || fs_nxt->ts_set == NULL)		/* need at least 2 sets to compare */
+  if (fs_nxt == NULL || fs_nxt->ts_set == NULL)        /* need at least 2 sets to compare */
     {
       return 0;
     }
@@ -567,26 +580,26 @@ ssmem_mem_reclaim(ssmem_allocator_t* a)
     {
       gced_num = a->free_set_num - 1;
       /* take the the suffix of the list (all collected free_sets) away from the
-	 free_set list of a and set the correct num of free_sets*/
+     free_set list of a and set the correct num of free_sets*/
       fs_cur->set_next = NULL;
       a->free_set_num = 1;
 
       /* find the tail for the collected_set list in order to append the new 
-	 free_sets that were just collected */
+     free_sets that were just collected */
       ssmem_free_set_t* collected_set_cur = a->collected_set_list; 
       if (collected_set_cur != NULL)
-	{
-	  while (collected_set_cur->set_next != NULL)
-	    {
-	      collected_set_cur = collected_set_cur->set_next;
-	    }
+        {
+          while (collected_set_cur->set_next != NULL)
+            {
+              collected_set_cur = collected_set_cur->set_next;
+            }
 
-	  collected_set_cur->set_next = fs_nxt;
-	}
+          collected_set_cur->set_next = fs_nxt;
+        }
       else
-	{
-	  a->collected_set_list = fs_nxt;
-	}
+        {
+          a->collected_set_list = fs_nxt;
+        }
       a->collected_set_num += gced_num;
     }
 
@@ -652,9 +665,9 @@ ssmem_ts_set_print_no_newline(size_t* set)
     {
       size_t i;
       for (i = 0; i < ssmem_ts_list_len; i++)
-	{
-	  printf("%zu|", set[i]);
-	}
+        {
+          printf("%zu|", set[i]);
+        }
     }
   else
     {
@@ -731,7 +744,7 @@ void
 ssmem_all_list_print(ssmem_allocator_t* a, int id)
 {
   printf("[ALLOC] [%-2d] free_set list: %-4zu / collected_set list: %-4zu\n",
-	 id, a->free_set_num, a->collected_set_num);
+     id, a->free_set_num, a->collected_set_num);
 }
 
 /* 
