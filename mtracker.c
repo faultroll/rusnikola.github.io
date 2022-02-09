@@ -75,6 +75,11 @@ mt_Inst *mt_Create(mt_Type type, mt_Config config)
         }
     }
 
+    if (NULL == config.alloc_func)
+        config.alloc_func = malloc;
+    if (NULL == config.free_func)
+        config.free_func = free;
+
     if (handle->create_func != NULL)
         handle->core = handle->create_func(config);
 

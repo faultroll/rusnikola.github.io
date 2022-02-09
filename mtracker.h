@@ -4,6 +4,7 @@
 
 #include <stddef.h> // size_t
 #include <stdbool.h> // bool
+#include <stdlib.h> // malloc/free
 
 #if defined(__cplusplus)
 extern "C" {
@@ -57,6 +58,24 @@ void    mt_EndOp(mt_Inst *handle, int tid); // leave
 void    mt_ClearAll(mt_Inst *handle); // leave all (EndOp all tid)
 // void    mt_Transfer(mt_Inst *handle, int tid, int src_sid, int dst_sid);
 // void    mt_Release(mt_Inst *handle, int tid, int sid);
+
+// default config
+#define MT_DEFAULT_CONF(_size) \
+    ((mt_Config){ \
+        /* .task_num = */ 32, \
+        /* .slot_num = */ 4, \
+        /* .epoch_freq = */ 150, \
+        /* .empty_freq = */ 30, \
+        /* .collect = */ true, \
+        /* .mem_size = */ _size, \
+        /* .alloc_func = */ malloc, \
+        /* .free_func = */ free, \
+    })
+// default task idx
+extern int mt_GetTid(void);
+#define MT_DEFAULT_TID mt_GetTid()
+// default slot idx
+#define MT_DEFAULT_SID 0
 
 #if defined(__cplusplus)
 }

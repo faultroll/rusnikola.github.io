@@ -67,7 +67,7 @@ void TestMTCreateAndDestroy(CuTest *tc)
     config.alloc_func = malloc;
     config.free_func = free;
 
-    handle = mt_Create(NIL, config);
+    handle = mt_Create(NIL, MT_DEFAULT_CONF(sizeof(CuString)));
     CuAssertTrue(tc, handle != NULL);
     mt_Destroy(handle);
     handle = mt_Create(RCU, config);
@@ -79,46 +79,41 @@ void TestMTCreateAndDestroy(CuTest *tc)
     handle = mt_Create(SSMEM, config);
     CuAssertTrue(tc, handle != NULL);
     mt_Destroy(handle);
+
+    printf("%s done\n", __func__);
 }
 void TestMTAllocAndReclaim(CuTest *tc)
 {
+    mt_Type type = SSMEM;
     mt_Inst *handle = NULL;
-    mt_Config config;
-    config.task_num = 16;
-    config.slot_num = 4;
-    config.epoch_freq = 150;
-    config.empty_freq = 30;
-    config.collect = true;
-    config.mem_size = sizeof(CuString);
-    config.alloc_func = malloc;
-    config.free_func = free;
+    mt_Config config = MT_DEFAULT_CONF(sizeof(CuString));
     int tid = 0;
-    void *mem = NULL;
+    void *mem1 = NULL, *mem2 = NULL;
 
-    handle = mt_Create(SSMEM, config);
+    handle = mt_Create(type, config);
     CuAssertTrue(tc, handle != NULL);
-    mem = mt_Alloc(handle, tid);
-    CuAssertTrue(tc, mem != NULL);
-    mt_Reclaim(handle, tid, mem);
+    mem1 = mt_Alloc(handle, tid);
+    CuAssertTrue(tc, mem1 != NULL);
+    mem2 = mt_Alloc(handle, tid);
+    CuAssertTrue(tc, mem2 != NULL);
+    // mt_Reclaim(handle, tid, mem1);
+    // mt_Reclaim(handle, tid, mem2);
+    mt_Reclaim(handle, tid, mem2);
+    mt_Reclaim(handle, tid, mem1);
     mt_Destroy(handle);
+
+    printf("%s done\n", __func__);
 }
 void TestMTWriteAndRead(CuTest *tc)
 {
+    mt_Type type = SSMEM;
     mt_Inst *handle = NULL;
-    mt_Config config;
-    config.task_num = 16;
-    config.slot_num = 4;
-    config.epoch_freq = 150;
-    config.empty_freq = 30;
-    config.collect = true;
-    config.mem_size = sizeof(CuString);
-    config.alloc_func = malloc;
-    config.free_func = free;
-    int tid = 0, sid = 2;
+    mt_Config config = MT_DEFAULT_CONF(sizeof(CuString));
+    int tid = MT_DEFAULT_TID, sid = 2;
     void *mem_alloc = NULL;
     mt_Config *mem_read = NULL;
 
-    handle = mt_Create(SSMEM, config);
+    handle = mt_Create(type, config);
     CuAssertTrue(tc, handle != NULL);
     mem_alloc = mt_Alloc(handle, tid);
     CuAssertTrue(tc, mem_alloc != NULL);
@@ -130,6 +125,8 @@ void TestMTWriteAndRead(CuTest *tc)
     CuAssertTrue(tc, mem_read->mem_size == 0xdeafbeaf);
     mt_Reclaim(handle, tid, mem_alloc);
     mt_Destroy(handle);
+
+    printf("%s done\n", __func__);
 }
 
 int main(void)
