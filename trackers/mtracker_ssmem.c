@@ -37,8 +37,9 @@ static void mt_CoreDestroy(mt_Core *core)
 {
     int task_num = core->config.task_num;
     for (int i = 0; i < task_num; i++) {
-        if (core->flag_inited[i])
+        if (core->flag_inited[i]) {
             // ssmem_alloc_term(&core->allocator[i]); // TODO(lgY): may this working
+        }
     }
     // ssmem_term();
     free(core->flag_inited);
