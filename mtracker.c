@@ -83,11 +83,12 @@ mt_Inst *mt_Create(mt_Type type, mt_Config config)
     if (handle->create_func != NULL)
         handle->core = handle->create_func(config);
 
-    int task_num = config.task_num, slot_num = config.slot_num;
-    handle->slot_renamers = malloc(task_num);
-    for (int i = 0; i < task_num; i++) {
-        handle->slot_renamers[i] = malloc(sizeof(int) * slot_num);
-        for (int j = 0; j < slot_num; j++) {
+    handle->task_num = config.task_num;
+    handle->slot_num = config.slot_num;
+    handle->slot_renamers = malloc(sizeof(int *) * handle->task_num);
+    for (int i = 0; i < handle->task_num; i++) {
+        handle->slot_renamers[i] = malloc(sizeof(int) * handle->slot_num);
+        for (int j = 0; j < handle->slot_num; j++) {
             handle->slot_renamers[i][j] = j;
         }
     }
@@ -98,6 +99,11 @@ void mt_Destroy(mt_Inst *handle)
 {
     if (NULL == handle)
         return;
+
+    for (int i = 0; i < handle->task_num; i++) {
+        free(handle->slot_renamers[i]);
+    }
+    free(handle->slot_renamers);
 
     if (handle->destroy_func != NULL)
         handle->destroy_func(handle->core);

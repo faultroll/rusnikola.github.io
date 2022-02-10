@@ -93,13 +93,13 @@ ssmem_free_set_t* ssmem_free_set_new(size_t size, ssmem_free_set_t* next);
 void
 ssmem_alloc_init_fs_size(ssmem_allocator_t* a, size_t size, size_t free_set_size, int id)
 {
-  ssmem_num_allocators++;
   ssmem_allocator_list = ssmem_list_node_new((void*) a, ssmem_allocator_list);
 
   if (ssmem_num_allocators == 0)
     {
       printf("[ALLOC] initializing allocator with fs size: %zu objects\n", free_set_size);
     }
+  ssmem_num_allocators++;
 
 #if SSMEM_TRANSPARENT_HUGE_PAGES
   int ret = posix_memalign(&a->mem, CACHE_LINE_SIZE, size);
@@ -254,8 +254,8 @@ ssmem_gc_thread_term()
 {
   free((void*)ssmem_ts_local);
   ssmem_ts_local = NULL;
-  free((void*)ssmem_allocator_list);
-  ssmem_allocator_list = NULL;
+  /* free((void*)ssmem_allocator_list);
+  ssmem_allocator_list = NULL; */
 }
 
 /* 
@@ -266,6 +266,7 @@ ssmem_alloc_term(ssmem_allocator_t* a)
 {
   /* printf("[ALLOC] term() : ~ total mem used: %zu bytes = %zu KB = %zu MB\n", */
   /*      a->tot_size, a->tot_size / 1024, a->tot_size / (1024 * 1024)); */
+  /* freeing allocator actual memory (memory pool) */
   ssmem_list_t* mcur = a->mem_chunks;
   do
     {
@@ -275,35 +276,6 @@ ssmem_alloc_term(ssmem_allocator_t* a)
       mcur = mnxt;
     }
   while (mcur != NULL);
-
-  ssmem_list_t* prv = ssmem_allocator_list;
-  ssmem_list_t* cur = ssmem_allocator_list;
-  while (cur != NULL && (uintptr_t) cur->obj != (uintptr_t) a)
-    {
-      prv = cur;
-      cur = cur->next;
-    }
-
-  if (cur == NULL)
-    {
-      printf("[ALLOC] ssmem_alloc_term: could not find %p in the ssmem_allocator_list\n", (void *)a);
-    }
-  else if (cur == prv)
-    {
-      ssmem_allocator_list = cur->next;
-    }
-  else
-    {
-      prv->next = cur->next;
-    }
-
-  /* no allocators in current thread, release local resources */
-  if (--ssmem_num_allocators == 0)
-    {
-      // free(a->ts);
-      ssmem_gc_thread_term();
-    }
-
 
   /* printf("[ALLOC] free(free_set)\n"); fflush(stdout); */
   /* freeing free sets */
@@ -345,7 +317,39 @@ ssmem_alloc_term(ssmem_allocator_t* a)
       rel = next;
     }
 
- }
+  /* freeing thread local resource */
+  /* no allocators in current thread */
+  if (--ssmem_num_allocators == 0)
+    {
+      // free(a->ts);
+      ssmem_gc_thread_term();
+    }
+
+  /* remove allocator from list */
+  ssmem_list_t* prv = ssmem_allocator_list;
+  ssmem_list_t* cur = ssmem_allocator_list;
+  while (cur != NULL && (uintptr_t) cur->obj != (uintptr_t) a)
+    {
+      prv = cur;
+      cur = cur->next;
+    }
+  if (cur == NULL)
+    {
+      printf("[ALLOC] ssmem_alloc_term: could not find %p in the ssmem_allocator_list\n", (void *)a);
+    }
+  else
+    {
+      if (cur == prv)
+        {
+          ssmem_allocator_list = cur->next;
+        }
+      else
+        {
+          prv->next = cur->next;
+        }
+      free(cur);
+    }
+}
 
 /* 
  * terminate all allocators
@@ -471,6 +475,8 @@ ssmem_alloc(ssmem_allocator_t* a, size_t size)
                 }
               /* printf("[ALLOC] new mem size chunk is %llu MB\n", a->mem_size / (1024 * 1024LL)); */
             }
+          /* TODO(lgY): find out where we safely free previous memory pool */
+          // free(a->mem);
     #if SSMEM_TRANSPARENT_HUGE_PAGES
           int ret = posix_memalign(&a->mem, CACHE_LINE_SIZE, a->mem_size);
           assert(ret == 0);

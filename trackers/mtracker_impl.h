@@ -47,6 +47,8 @@ struct mt_Inst {
     // handle for tracker impl
     mt_Core *core;
     // Used for transfer
+    int task_num;
+    int slot_num;
     int **slot_renamers; // padded
 };
 // Each tracker has its init functions

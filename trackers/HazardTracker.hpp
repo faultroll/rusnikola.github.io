@@ -98,13 +98,31 @@ private:
 	}
 
 public:
-	~HazardTracker(){};
+	~HazardTracker(){
+		for (int i = 0; i < task_num; i++) {
+			HazardInfo** field = &(retired[i]);
+			HazardInfo* info = *field;
+			if (info == nullptr) continue;
+			do {
+				HazardInfo* curr = info;
+				info = curr->next;
+				auto ptr = (T*)curr - 1;
+				*field = info;
+				this->reclaim(ptr);
+				this->dec_retired(i);
+			} while (info != nullptr);
+		}
+        delete[] cntrs;
+        delete[] retired;
+        free(local_slots);
+        free(slots);
+    };
 	HazardTracker(int task_num, int slotsPerThread, int emptyFreq, bool collect):BaseTracker<T>(task_num){
 		this->task_num = task_num;
 		this->slotsPerThread = slotsPerThread;
 		this->freq = emptyFreq;
-		slots = (HazardSlot*) aligned_alloc(alignof(HazardSlot), sizeof(HazardSlot) * task_num);
-		local_slots = (HazardSlot*) aligned_alloc(alignof(HazardSlot), sizeof(HazardSlot) * task_num * task_num);
+		slots = (HazardSlot*) malloc(sizeof(HazardSlot) * task_num); // aligned_alloc(alignof(HazardSlot), sizeof(HazardSlot) * task_num);
+		local_slots = (HazardSlot*) malloc(sizeof(HazardSlot) * task_num * task_num); // aligned_alloc(alignof(HazardSlot), sizeof(HazardSlot) * task_num * task_num);
 		for (int i = 0; i < task_num; i++) {
 			for (int j = 0; j < slotsPerThread; j++) {
 				slots[i].entry[j]=NULL;

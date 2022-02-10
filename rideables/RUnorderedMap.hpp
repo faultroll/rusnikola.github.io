@@ -27,7 +27,6 @@ limitations under the License.
 
 template <class K, class V> class RUnorderedMap : public virtual Rideable{
 public:
-
 	// Gets value corresponding to a key
 	// returns : the most recent value set for that key
 	virtual V get(K key, int tid)=0;

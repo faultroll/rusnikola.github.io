@@ -42,6 +42,9 @@ public:
 			retired_cnt[i] = 0;
 		}
 	}
+	~RetiredMonitorable(){
+        delete[] retired_cnt;
+	}
 
 	void setBaseMT(BaseMT* base) {
 		mem_tracker = base;

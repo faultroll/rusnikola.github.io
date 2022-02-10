@@ -94,6 +94,14 @@ private:
 	TrackerType type = NIL;
 	int** slot_renamers = NULL; // padded
 public:
+	virtual ~MemoryTracker(){
+        delete tracker;
+        int task_num = task_num_;
+		for (int i = 0; i < task_num; i++){
+			delete[] slot_renamers[i];
+		}
+        delete[] slot_renamers;
+    }
 	MemoryTracker(int epoch_freq, int empty_freq, int slot_num){
 		bool collect = COLLECT;
 		// count_retired_ = gtc->count_retired_;

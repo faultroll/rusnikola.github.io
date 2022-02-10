@@ -11,6 +11,7 @@ static thread_local int tid_ = 0;
 static thread_local once_flag flag_gen_ = ONCE_FLAG_INIT;
 static void mt_OnceGenTid(void)
 {
+    // ATOMIC_VAR_FAA(&thrd_num_, 1); tid_ = thrd_num_;
     do {
         tid_ = ATOMIC_VAR_LOAD(&thrd_num_);
     } while (!ATOMIC_VAR_CAS(&thrd_num_, tid_, tid_ + 1));

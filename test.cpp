@@ -1,6 +1,6 @@
 
 // global variables (for extern)
-int count_retired_ = 0;
+int count_retired_ = 1;
 int task_num_ = 24; // total thread number
 int task_stall_ = 8; // stall threads
 
@@ -10,12 +10,78 @@ int task_stall_ = 8; // stall threads
 #include "rideables/LinkList.hpp"
 #include "rideables/BonsaiTree.hpp"
 #include "rideables/NatarajanTree.hpp"
+#include <sstream>
+#include "thread_c.h"
+
+extern "C" {
+    int mt_GetTid(void);
+}
+
+void put_get(RUnorderedMap<std::string, std::string> *m, std::string key, std::string value, int tid)
+{
+    std::ostringstream stream;
+
+    stream.str("");
+    stream << tid << " put<'" << key << "','" << value << "'>" << std::endl;
+    std::cout << stream.str();
+    m->put(key, value, tid);
+
+    stream.str("");
+    stream << tid << " get '" << key << "':'" << m->get(key, tid) << "'" << std::endl;
+    std::cout << stream.str();
+}
+void remove_get(RUnorderedMap<std::string, std::string> *m, std::string key, int tid)
+{
+    std::ostringstream stream;
+
+    stream.str("");
+    stream << tid << " remove '" << key << "':'" << m->remove(key, tid) << "'" << std::endl;
+    std::cout << stream.str();
+
+    stream.str("");
+    stream << tid << " get '" << key << "':'" << m->get(key, tid) << "'" << std::endl;
+    std::cout << stream.str();
+}
+int execute(void *args)
+{
+    // thrd_detach(thrd_current()); // both are OK
+
+    RUnorderedMap<std::string, std::string> *m = static_cast<RUnorderedMap<std::string, std::string> *>(args);
+    int tid = mt_GetTid();
+    put_get(m, "b", "b", tid);
+    put_get(m, "c", "c", tid);
+    remove_get(m, "b", tid);
+
+    remove_get(m, "c", tid); // remove this will cause memleak, why?
+    RetiredMonitorable* rm_ptr = dynamic_cast<RetiredMonitorable*>(m);
+    std::ostringstream stream;
+    stream.str("");
+    stream<<tid<<" retired_cnt: "<<rm_ptr->report_retired(tid)<<std::endl;
+    std::cout<<stream.str();
+
+    return 0;
+}
+
 
 int main(void)
 {
     RideableFactory *p = new SortedUnorderedMapFactory<std::string, std::string>();
     Rideable *r = p->build();
     RUnorderedMap<std::string, std::string> *q = dynamic_cast<RUnorderedMap<std::string, std::string> *>(r);
+
+    // execute(q);
+    thrd_t t1, t2, t3, t4;
+    thrd_create(&t1, execute, q);
+    thrd_create(&t2, execute, q);
+    thrd_create(&t3, execute, q);
+    thrd_create(&t4, execute, q);
+
+    // sleep(1); // if detached, sleep to wait
+    thrd_join(t1, NULL);
+    thrd_join(t2, NULL);
+    thrd_join(t3, NULL);
+    thrd_join(t4, NULL);
+
     delete r;
     delete p;
 
@@ -30,9 +96,11 @@ int main(void)
 #include "CuTest.h"
 
 
-extern void TestMTCreateAndDestroy(CuTest *);
-extern void TestMTAllocAndReclaim(CuTest *);
-extern void TestMTWriteAndRead(CuTest *tc);
+extern "C" {
+    void TestMTCreateAndDestroy(CuTest *);
+    void TestMTAllocAndReclaim(CuTest *);
+    void TestMTWriteAndRead(CuTest *);
+}
 
 void RunAllTests(void)
 {
@@ -49,6 +117,13 @@ void RunAllTests(void)
     printf("%s\n", output->buffer);
     CuStringDelete(output);
     CuSuiteDelete(suite);
+}
+
+int main(void)
+{
+    RunAllTests();
+
+    return 0;
 }
 
 
@@ -127,13 +202,6 @@ void TestMTWriteAndRead(CuTest *tc)
     mt_Destroy(handle);
 
     printf("%s done\n", __func__);
-}
-
-int main(void)
-{
-    RunAllTests();
-
-    return 0;
 }
 
 #endif // 0

@@ -67,8 +67,8 @@ public:
 	HETracker(int task_num, int he_num, int epochFreq, int emptyFreq, bool collect): 
 	 BaseTracker<T>(task_num),task_num(task_num),he_num(he_num),epochFreq(epochFreq),freq(emptyFreq),collect(collect){
 		retired = new HEInfo*[task_num];
-		reservations = (HESlot *) aligned_alloc(alignof(HESlot), sizeof(HESlot) * task_num);
-		local_reservations = (HESlot*) aligned_alloc(alignof(HESlot), sizeof(HESlot) * task_num * task_num);
+		reservations = (HESlot *) malloc(sizeof(HESlot) * task_num); // aligned_alloc(alignof(HESlot), sizeof(HESlot) * task_num);
+		local_reservations = (HESlot*) malloc(sizeof(HESlot) * task_num * task_num); // aligned_alloc(alignof(HESlot), sizeof(HESlot) * task_num * task_num);
 		for (int i = 0; i<task_num; i++){
 			retired[i] = nullptr;
 			for (int j = 0; j<he_num; j++){

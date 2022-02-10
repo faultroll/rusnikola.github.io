@@ -37,6 +37,9 @@ private:
 public:
 	std::atomic<unsigned long> *retired; // padded
 
+	virtual ~BaseTracker(){
+        delete retired;
+    }
 	BaseTracker(int task_num):task_num(task_num){
 		retired = new std::atomic<unsigned long>;
 		retired->store(0, std::memory_order_seq_cst);

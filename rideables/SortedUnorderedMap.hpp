@@ -80,7 +80,10 @@ public:
 		memory_tracker = new MemoryTracker<Node>(epochf, emptyf, 3);
 		this->setBaseMT(memory_tracker);
 	}
-	~SortedUnorderedMap(){};
+	~SortedUnorderedMap(){
+        delete[] bucket;
+        delete memory_tracker;
+    };
 
 	Node* mkNode(K k, V v, Node* n, int tid){
 		void* ptr = memory_tracker->alloc(tid);
