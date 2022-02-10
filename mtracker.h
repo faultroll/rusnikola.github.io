@@ -35,20 +35,18 @@ typedef struct {
     int slot_num;
     int epoch_freq;
     int empty_freq;
-    bool collect; // tracker really works? or just dummy
+    bool collect; // tracker really works? or just dummy.
     struct {
-        // if we use malloc, we don't know it's size
-        // and may have its own destroyer rather than just free
-        size_t mem_size;
-        void *(*alloc_func)(size_t); // ctor
-        void (*free_func)(void *); // dtor
+        // size_t mem_size;
+        void *(*alloc_func)(size_t); // maybe you want to use a mempool?
+        void (*free_func)(void *); // you can also wrap dtor in this.
     }; // anonymous (mt_MemDes)
 } mt_Config;
 
 // tid: task_idx, sid: slot_idx
 mt_Inst *mt_Create(mt_Type type, mt_Config config);
 void    mt_Destroy(mt_Inst *handle);
-void    *mt_Alloc(mt_Inst *handle, int tid); // malloc
+void    *mt_Alloc(mt_Inst *handle, int tid, size_t sz); // malloc
 void    mt_Reclaim(mt_Inst *handle, int tid, void *mem); // free
 void    *mt_Read(mt_Inst *handle, int tid, int sid, void *mem); // acquire
 void    mt_Retire(mt_Inst *handle, int tid, void *mem); // release
@@ -60,16 +58,17 @@ void    mt_ClearAll(mt_Inst *handle); // leave all (EndOp all tid)
 // void    mt_Release(mt_Inst *handle, int tid, int sid);
 
 // default config
-#define MT_DEFAULT_CONF(_size) \
+#define MT_DEFAULT_CONF \
     ((mt_Config){ \
         /* .task_num = */ 32, \
         /* .slot_num = */ 4, \
         /* .epoch_freq = */ 150, \
         /* .empty_freq = */ 30, \
         /* .collect = */ true, \
-        /* .mem_size = */ _size, \
-        /* .alloc_func = */ malloc, \
-        /* .free_func = */ free, \
+        { \
+            /* .alloc_func = */ malloc, \
+            /* .free_func = */ free, \
+        } \
     })
 // default task idx
 extern int mt_GetTid(void);

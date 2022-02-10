@@ -39,9 +39,9 @@ static void mt_CoreDestroy(mt_Core *core)
 {
     free(core);
 }
-static void *mt_CoreAlloc(mt_Core *core, int tid)
+static void *mt_CoreAlloc(mt_Core *core, int tid, size_t sz)
 {
-    return core->config.alloc_func(core->config.mem_size);
+    return core->config.alloc_func(sz);
 }
 static void mt_CoreReclaim(mt_Core *core, int tid, void *mem)
 {

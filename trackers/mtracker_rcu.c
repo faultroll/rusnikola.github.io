@@ -49,13 +49,13 @@ static void mt_CoreDestroy(mt_Core *core)
     free(core->retired);
     free(core);
 }
-static void *mt_CoreAlloc(mt_Core *core, int tid)
+static void *mt_CoreAlloc(mt_Core *core, int tid, size_t sz)
 {
     if ((++core->alloc_counters[tid]) %
         (core->config.epoch_freq * core->config.task_num) == 0)
         ATOMIC_VAR_FAA(&core->epoch, 1);
 
-    return core->config.alloc_func(core->config.mem_size + sizeof(RCUInfo));
+    return core->config.alloc_func(sz + sizeof(RCUInfo));
 }
 static void mt_CoreReclaim(mt_Core *core, int tid, void *mem)
 {

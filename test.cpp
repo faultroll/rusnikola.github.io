@@ -53,11 +53,11 @@ int execute(void *args)
     remove_get(m, "b", tid);
 
     remove_get(m, "c", tid); // remove this will cause memleak, why?
-    RetiredMonitorable* rm_ptr = dynamic_cast<RetiredMonitorable*>(m);
+    RetiredMonitorable *rm_ptr = dynamic_cast<RetiredMonitorable *>(m);
     std::ostringstream stream;
     stream.str("");
-    stream<<tid<<" retired_cnt: "<<rm_ptr->report_retired(tid)<<std::endl;
-    std::cout<<stream.str();
+    stream << tid << " retired_cnt: " << rm_ptr->report_retired(tid) << std::endl;
+    std::cout << stream.str();
 
     return 0;
 }
@@ -127,6 +127,7 @@ int main(void)
 }
 
 
+#include <stdint.h>
 #include "mtracker.h"
 
 void TestMTCreateAndDestroy(CuTest *tc)
@@ -138,11 +139,10 @@ void TestMTCreateAndDestroy(CuTest *tc)
     config.epoch_freq = 150;
     config.empty_freq = 30;
     config.collect = true;
-    config.mem_size = sizeof(CuString);
     config.alloc_func = malloc;
     config.free_func = free;
 
-    handle = mt_Create(NIL, MT_DEFAULT_CONF(sizeof(CuString)));
+    handle = mt_Create(NIL, MT_DEFAULT_CONF);
     CuAssertTrue(tc, handle != NULL);
     mt_Destroy(handle);
     handle = mt_Create(RCU, config);
@@ -161,15 +161,15 @@ void TestMTAllocAndReclaim(CuTest *tc)
 {
     mt_Type type = SSMEM;
     mt_Inst *handle = NULL;
-    mt_Config config = MT_DEFAULT_CONF(sizeof(CuString));
+    mt_Config config = MT_DEFAULT_CONF;
     int tid = 0;
     void *mem1 = NULL, *mem2 = NULL;
 
     handle = mt_Create(type, config);
     CuAssertTrue(tc, handle != NULL);
-    mem1 = mt_Alloc(handle, tid);
+    mem1 = mt_Alloc(handle, tid, sizeof(CuString));
     CuAssertTrue(tc, mem1 != NULL);
-    mem2 = mt_Alloc(handle, tid);
+    mem2 = mt_Alloc(handle, tid, 111);
     CuAssertTrue(tc, mem2 != NULL);
     // mt_Reclaim(handle, tid, mem1);
     // mt_Reclaim(handle, tid, mem2);
@@ -183,21 +183,21 @@ void TestMTWriteAndRead(CuTest *tc)
 {
     mt_Type type = SSMEM;
     mt_Inst *handle = NULL;
-    mt_Config config = MT_DEFAULT_CONF(sizeof(CuString));
+    mt_Config config = MT_DEFAULT_CONF;
     int tid = MT_DEFAULT_TID, sid = 2;
     void *mem_alloc = NULL;
     mt_Config *mem_read = NULL;
 
     handle = mt_Create(type, config);
     CuAssertTrue(tc, handle != NULL);
-    mem_alloc = mt_Alloc(handle, tid);
+    mem_alloc = mt_Alloc(handle, tid, sizeof(mt_Config));
     CuAssertTrue(tc, mem_alloc != NULL);
     mem_read = (mt_Config *)mt_Read(handle, tid, sid, mem_alloc);
     CuAssertTrue(tc, mem_read != NULL);
-    mem_read->mem_size = 0xdeafbeaf;
+    mem_read->alloc_func = (void *(*)(size_t))0xdeafbeaf;
     mem_read = (mt_Config *)mt_Read(handle, tid, sid, mem_alloc);
     CuAssertTrue(tc, mem_read != NULL);
-    CuAssertTrue(tc, mem_read->mem_size == 0xdeafbeaf);
+    CuAssertTrue(tc, (intptr_t)mem_read->alloc_func == 0xdeafbeaf);
     mt_Reclaim(handle, tid, mem_alloc);
     mt_Destroy(handle);
 

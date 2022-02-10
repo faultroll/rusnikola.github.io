@@ -22,7 +22,7 @@ void WebRtcVad_Free(VadInst* handle); */
 typedef struct mt_Core mt_Core; // tracker core
 typedef mt_Core *(*mt_CreateFunc)(mt_Config config);
 typedef void (*mt_DestroyFunc)(mt_Core *handle);
-typedef void *(*mt_AllocFunc)(mt_Core *handle, int tid);
+typedef void *(*mt_AllocFunc)(mt_Core *handle, int tid, size_t sz);
 // NOTE: reclaim (obj, tid) should be used on all retired objects.
 // NOTE: reclaim (obj) shall be only used to thread-local objects.
 typedef void (*mt_ReclaimFunc)(mt_Core *handle, int tid, void *mem);

@@ -111,12 +111,12 @@ void mt_Destroy(mt_Inst *handle)
     free(handle);
 }
 
-void *mt_Alloc(mt_Inst *handle, int tid)
+void *mt_Alloc(mt_Inst *handle, int tid, size_t sz)
 {
     if (NULL == handle || NULL == handle->alloc_func)
         return NULL;
 
-    return handle->alloc_func(handle->core, tid);
+    return handle->alloc_func(handle->core, tid, sz);
 }
 void mt_Reclaim(mt_Inst *handle, int tid, void *mem)
 {

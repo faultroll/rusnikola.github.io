@@ -68,17 +68,17 @@ static void mt_CoreDestroy(mt_Core *core)
 #endif // !MT_SSMEM_USE_LOCAL_ALLOCATOR
     free(core);
 }
-static void *mt_CoreAlloc(mt_Core *core, int tid)
+static void *mt_CoreAlloc(mt_Core *core, int tid, size_t sz)
 {
 #if MT_SSMEM_USE_LOCAL_ALLOCATOR
     call_once(&flag_init_, mt_OnceInitAllocator);
-    return ssmem_alloc(&allocator_, core->config.mem_size);
+    return ssmem_alloc(&allocator_, sz);
 #else // MT_SSMEM_USE_LOCAL_ALLOCATOR
     if (!core->flag_init[tid]) {
         ssmem_alloc_init(&core->allocator[tid], SSMEM_DEFAULT_MEM_SIZE, tid);
         core->flag_init[tid] = true;
     }
-    return ssmem_alloc(&core->allocator[tid], core->config.mem_size);
+    return ssmem_alloc(&core->allocator[tid], sz);
 #endif // MT_SSMEM_USE_LOCAL_ALLOCATOR
 }
 static void mt_CoreReclaim(mt_Core *core, int tid, void *mem)
