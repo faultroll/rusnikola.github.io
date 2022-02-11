@@ -1,5 +1,7 @@
 
 #include "trackers/mtracker_impl.h"
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <limits.h>
 #include "atomic_c.h"
@@ -15,13 +17,22 @@ struct mt_Core {
     // mt_Type type; // No need, just different function
     mt_Config config;
     // public:
+    RCUInfo **retired; // padded
     ATOMIC_VAR(uint64_t) *reservations; // padded
     uint64_t *retire_counters; // padded
     uint64_t *alloc_counters; // padded
-    RCUInfo **retired; // padded
 
     ATOMIC_VAR(uint64_t) epoch; // padded
 };
+
+/* static inline
+uint64_t mt_GetEpoch(mt_Core *core) {
+    return ATOMIC_VAR_LOAD(&core->epoch);
+}
+static inline
+void mt_IncrementEpoch(mt_Core *core) {
+    ATOMIC_VAR_FAA(&core->epoch, 1);
+} */
 
 static mt_Core *mt_CoreCreate(mt_Config config)
 {
@@ -34,8 +45,10 @@ static mt_Core *mt_CoreCreate(mt_Config config)
     core->retire_counters = malloc(sizeof(uint64_t) * task_num);
     core->alloc_counters = malloc(sizeof(uint64_t) * task_num);
     for (int i = 0; i < task_num; i++) {
-        ATOMIC_VAR_STOR(&core->reservations[i], UINT64_MAX);
         core->retired[i] = NULL;
+        ATOMIC_VAR_STOR(&core->reservations[i], UINT64_MAX);
+        core->retire_counters[i] = 0;
+        core->alloc_counters[i] = 0;
     }
     ATOMIC_VAR_STOR(&core->epoch, 0);
 
@@ -43,19 +56,21 @@ static mt_Core *mt_CoreCreate(mt_Config config)
 }
 static void mt_CoreDestroy(mt_Core *core)
 {
+    // TODO(lgY): reclaim all retired memory here
+
     free(core->alloc_counters);
     free(core->retire_counters);
     free(core->reservations);
     free(core->retired);
     free(core);
 }
-static void *mt_CoreAlloc(mt_Core *core, int tid, size_t sz)
+static void *mt_CoreAlloc(mt_Core *core, int tid)
 {
     if ((++core->alloc_counters[tid]) %
         (core->config.epoch_freq * core->config.task_num) == 0)
-        ATOMIC_VAR_FAA(&core->epoch, 1);
+        ATOMIC_VAR_FAA(&core->epoch, 1); // mt_IncrementEpoch(core);
 
-    return core->config.alloc_func(sz + sizeof(RCUInfo));
+    return core->config.alloc_func(core->config.mem_size + sizeof(RCUInfo));
 }
 static void mt_CoreReclaim(mt_Core *core, int tid, void *mem)
 {
@@ -63,7 +78,7 @@ static void mt_CoreReclaim(mt_Core *core, int tid, void *mem)
 }
 static void *mt_CoreRead(mt_Core *core, int tid, int sid, void *mem)
 {
-    return mem; // ATOMIC_VAR_LOAD
+    return mem;
 }
 static void mt_Empty(mt_Core *core, int tid)
 {
@@ -83,7 +98,7 @@ static void mt_Empty(mt_Core *core, int tid)
         info = curr->next;
         if (curr->epoch < min_epoch) {
             *field = info;
-            mt_CoreReclaim(core, tid, curr - 1);
+            mt_CoreReclaim(core, tid, (void *)((uintptr_t)curr - core->config.mem_size));
             // dec_retired(tid);
             continue;
         }
@@ -96,8 +111,8 @@ static void mt_CoreRetire(mt_Core *core, int tid, void *mem)
         return;
     }
     RCUInfo **field = &(core->retired[tid]);
-    RCUInfo *info = (RCUInfo *)(mem + 1);
-    info->epoch = ATOMIC_VAR_LOAD(&core->epoch);
+    RCUInfo *info = (RCUInfo *)((uintptr_t)mem + core->config.mem_size); // find info
+    info->epoch = ATOMIC_VAR_LOAD(&core->epoch); // mt_GetEpoch(core);
     info->next = *field;
     *field = info;
     if (core->config.collect && core->retire_counters[tid] % core->config.empty_freq == 0) {
@@ -129,10 +144,6 @@ static void mt_CoreQSBREndOp(mt_Core *core, int tid)
     uint64_t e = ATOMIC_VAR_LOAD(&core->epoch);
     ATOMIC_VAR_STOR(&core->reservations[tid], e);
 }
-static void mt_CoreClearAll(mt_Core *core)
-{
-
-}
 
 void mt_InitFuncRCU(mt_Inst *handle)
 {
@@ -144,7 +155,6 @@ void mt_InitFuncRCU(mt_Inst *handle)
     handle->retire_func     = mt_CoreRetire;
     handle->start_op_func   = mt_CoreRCUStartOp;
     handle->end_op_func     = mt_CoreRCUEndOp;
-    handle->clear_all_func  = mt_CoreClearAll;
 }
 
 void mt_InitFuncQSBR(mt_Inst *handle)
@@ -157,5 +167,4 @@ void mt_InitFuncQSBR(mt_Inst *handle)
     handle->retire_func     = mt_CoreRetire;
     handle->start_op_func   = mt_CoreQSBRStartOp;
     handle->end_op_func     = mt_CoreQSBREndOp;
-    handle->clear_all_func  = mt_CoreClearAll;
 }

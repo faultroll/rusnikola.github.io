@@ -18,56 +18,56 @@ mt_Inst *mt_Create(mt_Type type, mt_Config config)
     mt_InitFuncBase(handle);
     // Override
     switch (type) {
-        case RCU: {
+        case MT_RCU: {
             extern void mt_InitFuncRCU(mt_Inst * handle);
             mt_InitFuncRCU(handle);
             break;
         }
-        case QSBR: {
+        case MT_QSBR: {
             extern void mt_InitFuncQSBR(mt_Inst * handle);
             mt_InitFuncQSBR(handle);
             break;
         }
-        case SSMEM: {
+        case MT_SSMEM: {
             extern void mt_InitFuncSSMem(mt_Inst * handle);
             mt_InitFuncSSMem(handle);
             break;
         }
 #if 0
-        case RangeNew: {
-            extern void mt_InitFuncRangeNew(mt_Inst * handle);
-            mt_InitFuncRangeNew(handle);
-            break;
-        }
-        case Hazard: {
-            extern void mt_InitFuncHazard(mt_Inst * handle);
-            mt_InitFuncHazard(handle);
-            break;
-        }
-        case WFE: {
-            extern void mt_InitFuncWFE(mt_Inst * handle);
-            mt_InitFuncWFE(handle);
-            break;
-        }
-        case HE: {
-            extern void mt_InitFuncHE(mt_Inst * handle);
-            mt_InitFuncHE(handle);
-            break;
-        }
-        case Interval: {
+        case MT_Interval: {
             extern void mt_InitFuncInterval(mt_Inst * handle);
             mt_InitFuncInterval(handle);
             break;
         }
+        case MT_RangeNew: {
+            extern void mt_InitFuncRangeNew(mt_Inst * handle);
+            mt_InitFuncRangeNew(handle);
+            break;
+        }
 #if !(__x86_64__ || __ppc64__) // only compile in 32 bit mode
-        case RangeTP: {
+        /* case MT_RangeTP: {
             extern void mt_InitFuncRangeTP(mt_Inst * handle);
             mt_InitFuncRangeTP(handle);
             break;
-        }
+        } */
 #endif
 #endif // 0
-        case NIL:
+        case MT_Hazard: {
+            extern void mt_InitFuncHazard(mt_Inst * handle);
+            mt_InitFuncHazard(handle);
+            break;
+        }
+        case MT_HE: {
+            extern void mt_InitFuncHE(mt_Inst * handle);
+            mt_InitFuncHE(handle);
+            break;
+        }
+        /* case MT_WFE: {
+            extern void mt_InitFuncWFE(mt_Inst * handle);
+            mt_InitFuncWFE(handle);
+            break;
+        } */
+        case MT_NIL:
         default: {
             // No override
             fprintf(stderr, "constructor - tracker type %d error, use Base.\n", type);
@@ -111,12 +111,12 @@ void mt_Destroy(mt_Inst *handle)
     free(handle);
 }
 
-void *mt_Alloc(mt_Inst *handle, int tid, size_t sz)
+void *mt_Alloc(mt_Inst *handle, int tid)
 {
     if (NULL == handle || NULL == handle->alloc_func)
         return NULL;
 
-    return handle->alloc_func(handle->core, tid, sz);
+    return handle->alloc_func(handle->core, tid);
 }
 void mt_Reclaim(mt_Inst *handle, int tid, void *mem)
 {
@@ -160,14 +160,7 @@ void mt_EndOp(mt_Inst *handle, int tid)
 
     handle->last_end_op_func(handle->core, tid);
 } */
-void mt_ClearAll(mt_Inst *handle)
-{
-    if (NULL == handle || NULL == handle->clear_all_func)
-        return;
-
-    handle->clear_all_func(handle->core);
-}
-/* void mt_Transfer(mt_Inst *handle, int src_sid, int dst_sid, int tid)
+void mt_Transfer(mt_Inst *handle, int src_sid, int dst_sid, int tid)
 {
     if (NULL == handle)
         return;
@@ -176,11 +169,3 @@ void mt_ClearAll(mt_Inst *handle)
     handle->slot_renamers[tid][src_sid] = handle->slot_renamers[tid][dst_sid];
     handle->slot_renamers[tid][dst_sid] = tmp;
 }
-void mt_Release(mt_Inst *handle, int tid, int sid)
-{
-    if (NULL == handle || NULL == handle->release_func)
-        return;
-
-    handle->release_func(handle->core, tid, handle->slot_renamers[tid][sid]);
-} */
-

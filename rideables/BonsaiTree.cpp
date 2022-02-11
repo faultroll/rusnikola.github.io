@@ -23,6 +23,7 @@ limitations under the License.
 #include <iostream>
 #include <list>
 #include <map>
+#include <cassert>
 
 // #define LAZY_TRACKER
 
@@ -263,7 +264,9 @@ V BonsaiTree<K, V>::update(Operation op, K key, V val, int tid){
 
 template<class K, class V>
 bool BonsaiTree<K, V>::insert(K key, V val, int tid){
-	// return (!update(op_insert, key, val, tid)); // TODO: remove |optional|
+	// return (!update(op_insert, key, val, tid));
+    V nf = {};
+    return (!(update(op_insert, key, val, tid) == nf));
 }
 
 template<class K, class V>

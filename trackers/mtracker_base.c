@@ -39,9 +39,9 @@ static void mt_CoreDestroy(mt_Core *core)
 {
     free(core);
 }
-static void *mt_CoreAlloc(mt_Core *core, int tid, size_t sz)
+static void *mt_CoreAlloc(mt_Core *core, int tid)
 {
-    return core->config.alloc_func(sz);
+    return core->config.alloc_func(core->config.mem_size);
 }
 static void mt_CoreReclaim(mt_Core *core, int tid, void *mem)
 {
@@ -49,7 +49,7 @@ static void mt_CoreReclaim(mt_Core *core, int tid, void *mem)
 }
 static void *mt_CoreRead(mt_Core *core, int tid, int sid, void *mem)
 {
-    return mem; // ATOMIC_VAR_LOAD
+    return mem; // ATOMIC_VAR_LOAD(&mem);
 }
 static void mt_CoreRetire(mt_Core *core, int tid, void *mem)
 {
@@ -60,10 +60,6 @@ static void mt_CoreStartOp(mt_Core *core, int tid)
 
 }
 static void mt_CoreEndOp(mt_Core *core, int tid)
-{
-
-}
-static void mt_CoreClearAll(mt_Core *core)
 {
 
 }
@@ -78,5 +74,4 @@ void mt_InitFuncBase(mt_Inst *handle)
     handle->retire_func     = mt_CoreRetire;
     handle->start_op_func   = mt_CoreStartOp;
     handle->end_op_func     = mt_CoreEndOp;
-    handle->clear_all_func  = mt_CoreClearAll;
 }

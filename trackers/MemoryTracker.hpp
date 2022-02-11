@@ -21,6 +21,9 @@ limitations under the License.
 #ifndef MEMORY_TRACKER_HPP
 #define MEMORY_TRACKER_HPP
 
+#define USE_CXX_MTRACKER 0
+
+#if USE_CXX_MTRACKER
 #include <queue>
 #include <list>
 #include <vector>
@@ -255,5 +258,80 @@ public:
 	}
 };
 
+#else // USE_CXX_MTRACKER
+#include "mtracker.h"
 
-#endif
+class BaseMT {
+public:
+	virtual void lastExit(int tid) = 0;
+};
+
+template<class T>
+class MemoryTracker : public BaseMT{
+private:
+	mt_Inst *tracker;
+    static 
+    void dtor_func(void *ptr) {
+        T* obj = static_cast<T*>(ptr);
+        obj->~T();
+        free(obj);
+    }
+public:
+	virtual ~MemoryTracker(){
+        mt_Destroy(tracker);
+    }
+	MemoryTracker(int epoch_freq, int empty_freq, int slot_num){
+        mt_Type type = MT_HE;
+        mt_Config config = MT_DEFAULT_CONF(0);
+        config.slot_num = slot_num;
+        config.epoch_freq = epoch_freq;
+        config.empty_freq = empty_freq;
+        config.mem_size = sizeof(T);
+        config.free_func = dtor_func;
+        tracker = mt_Create(type, config);
+	}
+
+	void* alloc(int tid){
+		return mt_Alloc(tracker, tid);
+	}
+
+	void reclaim(T* obj, int tid){
+		mt_Reclaim(tracker, tid, obj);
+	}
+
+	T* read(std::atomic<T*>& obj, int idx, int tid){
+		return static_cast<T*>(mt_Read(tracker, tid, idx, static_cast<void*>(obj)));
+	}
+
+	void retire(T* obj, int tid){
+		mt_Retire(tracker, tid, obj);
+	}
+
+	void start_op(int tid){
+		mt_StartOp(tracker, tid);
+	}
+
+	void end_op(int tid){
+		mt_EndOp(tracker, tid);
+	}
+
+	void lastExit(int tid) {
+		// mt_LastEndOp(tracker, tid);
+	}
+	
+	void clear_all(int tid){
+		mt_EndOp(tracker, tid);
+	}
+
+	void transfer(int src_idx, int dst_idx, int tid){
+		mt_Transfer(tracker, tid, src_idx, dst_idx);
+	}
+
+	uint64_t get_retired_cnt(int tid){
+		return 0;
+	}
+};
+
+#endif // USE_CXX_MTRACKER
+
+#endif // MEMORY_TRACKER_HPP

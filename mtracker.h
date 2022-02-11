@@ -13,21 +13,24 @@ extern "C" {
 typedef struct mt_Inst mt_Inst; // memory tracker instance
 
 typedef enum {
-    NIL = 0,
+    MT_NIL = 0,
+
     //for epoch-based trackers.
-    RCU = 2,
-    Interval = 4,
-    // Range = 6,
-    RangeNew = 8,
-    QSBR = 10,
-    // RangeTP = 12,
-    SSMEM = 14,
+    MT_RCU = 2,
+    MT_Interval = 4,
+    // MT_Range = 6,
+    MT_RangeNew = 8,
+    MT_QSBR = 10,
+    // MT_RangeTP = 12,
+    MT_SSMEM = 14,
+
     //for HP-like trackers.
-    Hazard = 1,
-    // HazardDynamic = 3,
-    HE = 5,
-    // WFE = 7,
-    // FORK = 13,
+    MT_Hazard = 1,
+    // MT_HazardDynamic = 3,
+    MT_HE = 5,
+    // MT_WFE = 7,
+    // MT_FORK = 13,
+
 } mt_Type;
 
 typedef struct {
@@ -37,7 +40,7 @@ typedef struct {
     int empty_freq;
     bool collect; // tracker really works? or just dummy.
     struct {
-        // size_t mem_size;
+        size_t mem_size;
         void *(*alloc_func)(size_t); // maybe you want to use a mempool?
         void (*free_func)(void *); // you can also wrap dtor in this.
     }; // anonymous (mt_MemDes)
@@ -46,19 +49,17 @@ typedef struct {
 // tid: task_idx, sid: slot_idx
 mt_Inst *mt_Create(mt_Type type, mt_Config config);
 void    mt_Destroy(mt_Inst *handle);
-void    *mt_Alloc(mt_Inst *handle, int tid, size_t sz); // malloc
+void    *mt_Alloc(mt_Inst *handle, int tid); // malloc
 void    mt_Reclaim(mt_Inst *handle, int tid, void *mem); // free
 void    *mt_Read(mt_Inst *handle, int tid, int sid, void *mem); // acquire
 void    mt_Retire(mt_Inst *handle, int tid, void *mem); // release
 void    mt_StartOp(mt_Inst *handle, int tid); // enter
-void    mt_EndOp(mt_Inst *handle, int tid); // leave
-// void    mt_LastEndOp(mt_Inst *handle, int tid); // last leave
-void    mt_ClearAll(mt_Inst *handle); // leave all (EndOp all tid)
-// void    mt_Transfer(mt_Inst *handle, int tid, int src_sid, int dst_sid);
-// void    mt_Release(mt_Inst *handle, int tid, int sid);
+void    mt_EndOp(mt_Inst *handle, int tid); // leave, clear (all slot)
+// void    mt_LastEndOp(mt_Inst *handle, int tid); // last leave (in current tid)
+void    mt_Transfer(mt_Inst *handle, int tid, int src_sid, int dst_sid);
 
 // default config
-#define MT_DEFAULT_CONF \
+#define MT_DEFAULT_CONF(_size) \
     ((mt_Config){ \
         /* .task_num = */ 32, \
         /* .slot_num = */ 4, \
@@ -66,6 +67,7 @@ void    mt_ClearAll(mt_Inst *handle); // leave all (EndOp all tid)
         /* .empty_freq = */ 30, \
         /* .collect = */ true, \
         { \
+            /* .mem_size = */ _size, \
             /* .alloc_func = */ malloc, \
             /* .free_func = */ free, \
         } \

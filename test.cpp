@@ -4,7 +4,7 @@ int count_retired_ = 1;
 int task_num_ = 24; // total thread number
 int task_stall_ = 8; // stall threads
 
-#if 0
+#if 1
 #include "rideables/SGLUnorderedMap.hpp"
 #include "rideables/SortedUnorderedMap.hpp"
 #include "rideables/LinkList.hpp"
@@ -44,7 +44,7 @@ void remove_get(RUnorderedMap<std::string, std::string> *m, std::string key, int
 }
 int execute(void *args)
 {
-    // thrd_detach(thrd_current()); // both are OK
+    thrd_detach(thrd_current()); // both are OK
 
     RUnorderedMap<std::string, std::string> *m = static_cast<RUnorderedMap<std::string, std::string> *>(args);
     int tid = mt_GetTid();
@@ -76,11 +76,11 @@ int main(void)
     thrd_create(&t3, execute, q);
     thrd_create(&t4, execute, q);
 
-    // sleep(1); // if detached, sleep to wait
-    thrd_join(t1, NULL);
-    thrd_join(t2, NULL);
-    thrd_join(t3, NULL);
-    thrd_join(t4, NULL);
+    sleep(1); // if detached, sleep to wait
+    // thrd_join(t1, NULL);
+    // thrd_join(t2, NULL);
+    // thrd_join(t3, NULL);
+    // thrd_join(t4, NULL);
 
     delete r;
     delete p;
@@ -127,7 +127,6 @@ int main(void)
 }
 
 
-#include <stdint.h>
 #include "mtracker.h"
 
 void TestMTCreateAndDestroy(CuTest *tc)
@@ -139,19 +138,23 @@ void TestMTCreateAndDestroy(CuTest *tc)
     config.epoch_freq = 150;
     config.empty_freq = 30;
     config.collect = true;
+    config.mem_size = sizeof(CuString);
     config.alloc_func = malloc;
     config.free_func = free;
 
-    handle = mt_Create(NIL, MT_DEFAULT_CONF);
+    handle = mt_Create(MT_NIL, MT_DEFAULT_CONF(sizeof(CuString)));
     CuAssertTrue(tc, handle != NULL);
     mt_Destroy(handle);
-    handle = mt_Create(RCU, config);
+    handle = mt_Create(MT_RCU, config);
     CuAssertTrue(tc, handle != NULL);
     mt_Destroy(handle);
-    handle = mt_Create(QSBR, config);
+    handle = mt_Create(MT_QSBR, config);
     CuAssertTrue(tc, handle != NULL);
     mt_Destroy(handle);
-    handle = mt_Create(SSMEM, config);
+    handle = mt_Create(MT_SSMEM, config);
+    CuAssertTrue(tc, handle != NULL);
+    mt_Destroy(handle);
+    handle = mt_Create(MT_Hazard, config);
     CuAssertTrue(tc, handle != NULL);
     mt_Destroy(handle);
 
@@ -159,17 +162,17 @@ void TestMTCreateAndDestroy(CuTest *tc)
 }
 void TestMTAllocAndReclaim(CuTest *tc)
 {
-    mt_Type type = SSMEM;
+    mt_Type type = MT_RCU;
     mt_Inst *handle = NULL;
-    mt_Config config = MT_DEFAULT_CONF;
+    mt_Config config = MT_DEFAULT_CONF(sizeof(CuString));
     int tid = 0;
     void *mem1 = NULL, *mem2 = NULL;
 
     handle = mt_Create(type, config);
     CuAssertTrue(tc, handle != NULL);
-    mem1 = mt_Alloc(handle, tid, sizeof(CuString));
+    mem1 = mt_Alloc(handle, tid);
     CuAssertTrue(tc, mem1 != NULL);
-    mem2 = mt_Alloc(handle, tid, 111);
+    mem2 = mt_Alloc(handle, tid);
     CuAssertTrue(tc, mem2 != NULL);
     // mt_Reclaim(handle, tid, mem1);
     // mt_Reclaim(handle, tid, mem2);
@@ -181,23 +184,23 @@ void TestMTAllocAndReclaim(CuTest *tc)
 }
 void TestMTWriteAndRead(CuTest *tc)
 {
-    mt_Type type = SSMEM;
+    mt_Type type = MT_RCU;
     mt_Inst *handle = NULL;
-    mt_Config config = MT_DEFAULT_CONF;
+    mt_Config config = MT_DEFAULT_CONF(sizeof(mt_Config));
     int tid = MT_DEFAULT_TID, sid = 2;
     void *mem_alloc = NULL;
     mt_Config *mem_read = NULL;
 
     handle = mt_Create(type, config);
     CuAssertTrue(tc, handle != NULL);
-    mem_alloc = mt_Alloc(handle, tid, sizeof(mt_Config));
+    mem_alloc = mt_Alloc(handle, tid);
     CuAssertTrue(tc, mem_alloc != NULL);
     mem_read = (mt_Config *)mt_Read(handle, tid, sid, mem_alloc);
     CuAssertTrue(tc, mem_read != NULL);
-    mem_read->alloc_func = (void *(*)(size_t))0xdeafbeaf;
+    mem_read->mem_size = 0xdeafbeaf;
     mem_read = (mt_Config *)mt_Read(handle, tid, sid, mem_alloc);
     CuAssertTrue(tc, mem_read != NULL);
-    CuAssertTrue(tc, (intptr_t)mem_read->alloc_func == 0xdeafbeaf);
+    CuAssertTrue(tc, mem_read->mem_size == 0xdeafbeaf);
     mt_Reclaim(handle, tid, mem_alloc);
     mt_Destroy(handle);
 
