@@ -33,7 +33,6 @@ mt_Inst *mt_Create(mt_Type type, mt_Config config)
             mt_InitFuncSSMem(handle);
             break;
         }
-#if 0
         case MT_Interval: {
             extern void mt_InitFuncInterval(mt_Inst * handle);
             mt_InitFuncInterval(handle);
@@ -51,7 +50,6 @@ mt_Inst *mt_Create(mt_Type type, mt_Config config)
             break;
         } */
 #endif
-#endif // 0
         case MT_Hazard: {
             extern void mt_InitFuncHazard(mt_Inst * handle);
             mt_InitFuncHazard(handle);
