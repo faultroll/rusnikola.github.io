@@ -13,6 +13,7 @@ extern "C" {
 typedef struct mt_Inst mt_Inst; // memory tracker instance
 
 typedef enum {
+    // kTypeNil/kTrackerNil or kMTNil is wield
     MT_NIL = 0,
 
     //for epoch-based trackers.
@@ -40,16 +41,20 @@ typedef struct {
     int empty_freq;
     bool collect; // tracker really works? or just dummy.
     struct {
+        // we need and use this as max size, for some trackers may 
+        // alloc tracker info after memory (same address, with offset).
         size_t mem_size;
-        void *(*alloc_func)(size_t); // maybe you want to use a mempool?
-        void (*free_func)(void *); // you can also wrap dtor in this.
+        // maybe you want to use a mempool?
+        void *(*alloc_func)(size_t);
+        // you can also wrap dtor in this.
+        void (*free_func)(void *);
     }; // anonymous (mt_MemDes)
 } mt_Config;
 
 // tid: task_idx, sid: slot_idx
 mt_Inst *mt_Create(mt_Type type, mt_Config config);
 void    mt_Destroy(mt_Inst *handle);
-void    *mt_Alloc(mt_Inst *handle, int tid); // malloc
+void    *mt_Alloc(mt_Inst *handle, int tid); // malloc, size is in config
 void    mt_Reclaim(mt_Inst *handle, int tid, void *mem); // free
 void    *mt_Read(mt_Inst *handle, int tid, int sid, void *mem); // acquire
 void    mt_Retire(mt_Inst *handle, int tid, void *mem); // release

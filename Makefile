@@ -7,10 +7,11 @@ ranlib := $(prfx)ranlib
 strip  := $(prfx)strip
 
 name    := mtracker
-srcs    := test.cpp rideables/BonsaiTree.cpp gettid.c # $(wildcard *.c) $(wildcard *.cpp)
-srcs    += mtracker.c \
+srcs    := # $(wildcard *.c) $(wildcard *.cpp)
+srcs    += test.cpp rideables/BonsaiTree.cpp
+srcs    += mtracker.c gettid.c \
            trackers/mtracker_base.c trackers/mtracker_rcu.c \
-		   trackers/mtracker_hazard.c trackers/mtracker_he.c
+           trackers/mtracker_hazard.c trackers/mtracker_he.c
 # srcs    += $(wildcard features/*.c)
 srcs    += trackers/ssmem/src/ssmem.c trackers/mtracker_ssmem.c
 srcs    += cutest/CuTest.c

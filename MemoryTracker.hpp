@@ -21,39 +21,8 @@ limitations under the License.
 #ifndef MEMORY_TRACKER_HPP
 #define MEMORY_TRACKER_HPP
 
-#define USE_CXX_MTRACKER 0
-
-#if USE_CXX_MTRACKER
-#include <queue>
-#include <list>
-#include <vector>
+#include <stdint.h>
 #include <atomic>
-// #include "ConcurrentPrimitives.hpp"
-// #include "RAllocator.hpp"
-
-#include "BaseTracker.hpp"
-#include "RCUTracker.hpp"
-// #include "HyalineTrackerEL.hpp"
-// #include "HyalineSTrackerEL.hpp"
-// #include "HyalineOTrackerEL.hpp"
-// #include "HyalineOSTrackerEL.hpp"
-// #include "HyalineTrackerTR.hpp"
-// #include "HyalineSTrackerTR.hpp"
-// #include "HyalineOTrackerTR.hpp"
-// #include "HyalineOSTrackerTR.hpp"
-#include "IntervalTracker.hpp"
-#include "RangeTrackerNew.hpp"
-#include "HazardTracker.hpp"
-#include "HETracker.hpp"
-/* #if !(__x86_64__ || __ppc64__)
-#include "RangeTrackerTP.hpp"
-#endif */
-
-#ifdef NGC
-#define COLLECT false
-#else
-#define COLLECT true
-#endif
 
 enum TrackerType{
 	NIL = 0,
@@ -82,10 +51,44 @@ enum TrackerType{
 	// HyalineOSTR = 17
 };
 
+// for RetiredMonitorable
 class BaseMT {
 public:
 	virtual void lastExit(int tid) = 0;
 };
+
+#define USE_CXX_MTRACKER 0
+
+#if USE_CXX_MTRACKER
+// #include <queue>
+// #include <list>
+// #include <vector>
+// #include "ConcurrentPrimitives.hpp"
+// #include "RAllocator.hpp"
+
+#include "BaseTracker.hpp"
+#include "RCUTracker.hpp"
+// #include "HyalineTrackerEL.hpp"
+// #include "HyalineSTrackerEL.hpp"
+// #include "HyalineOTrackerEL.hpp"
+// #include "HyalineOSTrackerEL.hpp"
+// #include "HyalineTrackerTR.hpp"
+// #include "HyalineSTrackerTR.hpp"
+// #include "HyalineOTrackerTR.hpp"
+// #include "HyalineOSTrackerTR.hpp"
+#include "IntervalTracker.hpp"
+#include "RangeTrackerNew.hpp"
+#include "HazardTracker.hpp"
+#include "HETracker.hpp"
+#if !(__x86_64__ || __ppc64__)
+// #include "RangeTrackerTP.hpp"
+#endif
+
+#ifdef NGC
+#define COLLECT false
+#else
+#define COLLECT true
+#endif
 
 // extern int count_retired_;
 extern int task_num_;
@@ -180,12 +183,12 @@ public:
 		}
 
 		// only compile in 32 bit mode
-/* #if !(__x86_64__ || __ppc64__)
-		else if (tracker_type == "TP"){
+#if !(__x86_64__ || __ppc64__)
+		/* else if (tracker_type == "TP"){
 			tracker = new RangeTrackerTP<T>(task_num, epoch_freq, empty_freq, collect);
 			type = Range_TP;
-		}
-#endif */
+		} */
+#endif
 
 		else {
 			fprintf(stderr, "constructor - tracker type %s error.", tracker_type.c_str());
@@ -195,26 +198,32 @@ public:
 		
 	}
 
-	void lastExit(int tid) {
-		tracker->last_end_op(tid);
-	}
-
-	void* alloc(){
+	/* void* alloc(){
 		return tracker->alloc();
-	}
+	} */
 
 	void* alloc(int tid){
 		return tracker->alloc(tid);
 	}
-	//NOTE: reclaim shall be only used to thread-local objects.
+
+	/* //NOTE: reclaim shall be only used to thread-local objects.
 	void reclaim(T* obj){
 		if(obj!=nullptr)
 			tracker->reclaim(obj);
-	}
+	} */
 
 	void reclaim(T* obj, int tid){
 		if (obj!=nullptr)
 			tracker->reclaim(obj, tid);
+	}
+
+	T* read(std::atomic<T*>& obj, int idx, int tid){
+		return tracker->read(obj, slot_renamers[tid][idx], tid);
+	}
+
+	void retire(T* obj, int tid){
+		tracker->inc_retired(tid);
+		tracker->retire(obj, tid);
 	}
 
 	void start_op(int tid){
@@ -226,8 +235,12 @@ public:
 		tracker->end_op(tid);
 	}
 
-	T* read(std::atomic<T*>& obj, int idx, int tid){
-		return tracker->read(obj, slot_renamers[tid][idx], tid);
+	void lastExit(int tid) {
+		tracker->last_end_op(tid);
+	}
+
+	void clear_all(int tid){
+		tracker->clear_all(tid);
 	}
 
 	void transfer(int src_idx, int dst_idx, int tid){
@@ -236,18 +249,9 @@ public:
 		slot_renamers[tid][dst_idx] = tmp;
 	}
 
-	void release(int idx, int tid){
+	/* void release(int idx, int tid){
 		tracker->release(slot_renamers[tid][idx], tid);
-	}
-	
-	void clear_all(int tid){
-		tracker->clear_all(tid);
-	}
-
-	void retire(T* obj, int tid){
-		tracker->inc_retired(tid);
-		tracker->retire(obj, tid);
-	}
+	} */
 
 	uint64_t get_retired_cnt(int tid){
 		if (type){
@@ -261,17 +265,12 @@ public:
 #else // USE_CXX_MTRACKER
 #include "mtracker.h"
 
-class BaseMT {
-public:
-	virtual void lastExit(int tid) = 0;
-};
-
 template<class T>
 class MemoryTracker : public BaseMT{
 private:
-	mt_Inst *tracker;
-    static 
-    void dtor_func(void *ptr) {
+	mt_Inst *tracker = NULL;
+	// TrackerType type = NIL;
+    static void dtor_func(void *ptr) {
         T* obj = static_cast<T*>(ptr);
         obj->~T();
         free(obj);
