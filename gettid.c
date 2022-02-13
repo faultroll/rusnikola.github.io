@@ -14,7 +14,7 @@ static void mt_OnceGenTid(void)
     // ATOMIC_VAR_FAA(&thrd_num_, 1); tid_ = thrd_num_;
     do {
         tid_ = ATOMIC_VAR_LOAD(&thrd_num_);
-    } while (!ATOMIC_VAR_CAS(&thrd_num_, tid_, tid_ + 1));
+    } while (!(ATOMIC_VAR_CAS(&thrd_num_, tid_, tid_ + 1) == tid_));
 }
 
 int mt_GetTid(void)
