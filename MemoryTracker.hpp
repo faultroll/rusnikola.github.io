@@ -195,7 +195,7 @@ public:
 			exit(EXIT_FAILURE);
 		}
 		
-		
+		printf("MemoryTracker type %s\n", tracker_type.c_str());
 	}
 
 	/* void* alloc(){
@@ -288,6 +288,7 @@ public:
         config.mem_size = sizeof(T);
         config.free_func = dtor_func;
         tracker = mt_Create(type, config);
+		printf("MemoryTracker type %d\n", type);
 	}
 
 	void* alloc(int tid){

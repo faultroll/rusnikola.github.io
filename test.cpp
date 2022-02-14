@@ -11,12 +11,16 @@ int task_stall_ = 8; // stall threads
 #include "rideables/BonsaiTree.hpp"
 #include "rideables/NatarajanTree.hpp"
 #include <sstream>
+#include <stdlib.h> // srand/rand
+#include <time.h> // time
 #include "thread_c.h"
 
 extern "C" {
     int mt_GetTid(void);
 }
 
+#define kNumThreads 10
+#define kNumIterations 10000000
 void put_get(RUnorderedMap<std::string, std::string> *m, std::string key, std::string value, int tid)
 {
     std::ostringstream stream;
@@ -44,20 +48,37 @@ void remove_get(RUnorderedMap<std::string, std::string> *m, std::string key, int
 }
 int execute(void *args)
 {
-    thrd_detach(thrd_current()); // both are OK
+    // thrd_detach(thrd_current()); // both are OK
 
     RUnorderedMap<std::string, std::string> *m = static_cast<RUnorderedMap<std::string, std::string> *>(args);
     int tid = mt_GetTid();
-    put_get(m, "b", "b", tid);
+
+    /* put_get(m, "b", "b", tid);
     put_get(m, "c", "c", tid);
     remove_get(m, "b", tid);
-
     remove_get(m, "c", tid); // remove this will cause memleak, why?
     RetiredMonitorable *rm_ptr = dynamic_cast<RetiredMonitorable *>(m);
     std::ostringstream stream;
     stream.str("");
     stream << tid << " retired_cnt: " << rm_ptr->report_retired(tid) << std::endl;
-    std::cout << stream.str();
+    std::cout << stream.str(); */
+
+    // SSMEM not pass this test
+    printf("(%zu) begin\n", (size_t)(uintptr_t)thrd_current());
+    srand(time(NULL));
+    for (int i = 0; i < kNumIterations / kNumThreads; ++i)
+    {
+        unsigned int r = rand();
+        int key = r & 0xF;
+
+        if (r & (1 << 8))
+            // put_get(m, std::to_string(key + 1), std::to_string(1), tid);
+            m->put(std::to_string(key + 1), "1", tid);
+        else
+            // remove_get(m, std::to_string(key + 1), tid);
+            m->remove(std::to_string(key + 1), tid);
+    }
+    printf("(%zu) end\n", (size_t)(uintptr_t)thrd_current());
 
     return 0;
 }
@@ -70,17 +91,24 @@ int main(void)
     RUnorderedMap<std::string, std::string> *q = dynamic_cast<RUnorderedMap<std::string, std::string> *>(r);
 
     // execute(q);
-    thrd_t t1, t2, t3, t4;
-    thrd_create(&t1, execute, q);
-    thrd_create(&t2, execute, q);
-    thrd_create(&t3, execute, q);
-    thrd_create(&t4, execute, q);
 
-    sleep(1); // if detached, sleep to wait
-    // thrd_join(t1, NULL);
-    // thrd_join(t2, NULL);
-    // thrd_join(t3, NULL);
-    // thrd_join(t4, NULL);
+    thrd_t tp[kNumThreads] = {0};
+    size_t i, len = sizeof(tp) / sizeof(tp[0]);
+    for (i = 0; i < len; i++) {
+        int rc = thrd_create(&tp[i], execute, q);
+        if (rc != 0) {
+            fprintf(stderr, "thrd_create %zu error %#x\n", i, rc);
+            continue;
+        }
+    }
+
+    // sleep(1); // if detached, sleep to wait
+    // printf("detach wait end, exit\n");
+    for (i = 0; i < len; i++) {
+        if (tp[i]) {
+            thrd_join(tp[i], NULL);
+        }
+    }
 
     delete r;
     delete p;
