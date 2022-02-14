@@ -8,7 +8,7 @@ strip  := $(prfx)strip
 
 name    := mtracker
 srcs    := # $(wildcard *.c) $(wildcard *.cpp)
-srcs    += test.cpp rideables/BonsaiTree.cpp # rideables/nbds_list.c
+srcs    += test.cpp rideables/BonsaiTree.cpp rideables/nbds_list.c
 srcs    += mtracker.c gettid.c \
            trackers/mtracker_base.c trackers/mtracker_rcu.c \
            trackers/mtracker_hazard.c trackers/mtracker_he.c \

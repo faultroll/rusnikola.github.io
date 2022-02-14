@@ -29,7 +29,8 @@ struct ll_iter {
 
 struct ll {
     node_t *head;
-    const datatype_t *key_type;
+    /* const */ datatype_t *key_type;
+    mt_Inst* tracker;
 };
 
 // Marking the <next> field of a node logically removes it from the list
@@ -38,58 +39,54 @@ struct ll {
 #define   GET_NODE(x) ((node_t *)(x))
 #define STRIP_MARK(x) ((node_t *)STRIP_TAG((x), 0x1))
 
-static mt_Inst* tracker_;
-static once_flag flag_init_ = ONCE_FLAG_INIT;
-static void dtor_func(void *x) {
-    node_t *item = (node_t *)x;
-    // cannot free if key_type is NULL
-    // 1. store key_type in node
-    // 2. each sl has two trackers(data_type func need to be changed)
-    // free((void *)item->key);
-    free((void *)item);
-}
-static void once_init(void)
-{
-    mt_Type type = MT_Hazard;
-    mt_Config config = MT_DEFAULT_CONF(sizeof(node_t));
-    config.alloc_func = malloc; 
-    config.free_func = dtor_func;
-
-    tracker_ = mt_Create(type, config);
-}
-
-static node_t *node_alloc (map_key_t key, map_val_t val, const datatype_t *key_type) {
-    node_t *item = (node_t *)mt_Alloc(tracker_, MT_DEFAULT_TID);
+static node_t *node_alloc (list_t *ll, map_key_t key, map_val_t val) {
+    node_t *item = (node_t *)mt_Alloc(ll->tracker, MT_DEFAULT_TID);
     assert(!HAS_MARK((size_t)item));
-    if (EXPECT_TRUE(key_type == NULL)) {
-        item->key = key;
-    } else {
-        item->key = (map_key_t)key_type->clone((void *)item->key);
-    }
+    item->key = (map_key_t)((uintptr_t)item + sizeof(node_t));
     item->val = val;
     return item;
 }
-static void node_free(node_t *item, const datatype_t *key_type)
+
+static void node_free(list_t *ll, node_t *item)
 {
-    mt_Retire(tracker_, MT_DEFAULT_TID, item);
+    mt_Retire(ll->tracker, MT_DEFAULT_TID, item);
+}
+
+static int cmp_nil(const void *pa, const void *pb)
+{
+    map_key_t a = *(map_key_t *)pa, b = *(map_key_t *)pb;
+    return a - b;
 }
 
 list_t *ll_alloc (const datatype_t *key_type) {
-    call_once(&flag_init_, once_init);
     list_t *ll = (list_t *)malloc(sizeof(list_t));
     ll->key_type = key_type;
-    ll->head = node_alloc(0, 0, ll->key_type);
+    // Three ways tracking key_type
+    // 1. store in node
+    // 2. each list has two trackers
+    //    one common tracker, for node; the other in list, for key
+    // (we use this)3. alloc with node (just like tracker info)
+    //    we treat no key_type as map_key_t key_type
+    if (EXPECT_TRUE(ll->key_type == NULL)) {
+        ll->key_type->size = sizeof(map_key_t);
+        ll->key_type->cmp = cmp_nil;
+    }
+    mt_Type type = MT_HE;
+    mt_Config config = MT_DEFAULT_CONF(sizeof(node_t) + ll->key_type->size);
+    ll->tracker = mt_Create(type, config);
+    ll->head = node_alloc(ll, 0, 0);
     ll->head->next = DOES_NOT_EXIST;
     return ll;
 }
 
 void ll_free (list_t *ll) {
     node_t *item = STRIP_MARK(ll->head->next);
-    while (item != NULL) {
+    while (item) {
         node_t *next = STRIP_MARK(item->next);
-        mt_Retire(tracker_, MT_DEFAULT_TID, item);
+        node_free(ll, item);
         item = next;
     }
+    mt_Destroy(ll->tracker);
     free(ll);
 }
 
@@ -107,16 +104,16 @@ size_t ll_count (list_t *ll) {
 
 static int find_pred (node_t **pred_ptr, node_t **item_ptr, list_t *ll, map_key_t key, int help_remove) {
     node_t *pred = ll->head;
-    node_t *item = GET_NODE(mt_Read(tracker_, MT_DEFAULT_TID, 1, pred->next));
+    node_t *item = GET_NODE(mt_Read(ll->tracker, MT_DEFAULT_TID, 1, (void *)(uintptr_t)pred->next));
     TRACE("l2", "find_pred: searching for key %p in list (head is %p)", key, pred);
 
     // haz_t *temp, *hp0 = haz_get_static(0), *hp1 = haz_get_static(1);
     while (item != NULL) {
         // haz_set(hp0, item);
-        if (STRIP_MARK(mt_Read(tracker_, MT_DEFAULT_TID, 2, pred->next)) != item)
+        if (STRIP_MARK((uintptr_t)mt_Read(ll->tracker, MT_DEFAULT_TID, 2, (void *)(uintptr_t)pred->next)) != item)
             return find_pred(pred_ptr, item_ptr, ll, key, help_remove); // retry
 
-        markable_t next = mt_Read(tracker_, MT_DEFAULT_TID, 0, item->next);
+        markable_t next = (uintptr_t)mt_Read(ll->tracker, MT_DEFAULT_TID, 0, (void *)(uintptr_t)item->next);
 
         // A mark means the node is logically removed but not physically unlinked yet.
         while (EXPECT_FALSE(HAS_MARK(next))) {
@@ -141,7 +138,7 @@ static int find_pred (node_t **pred_ptr, node_t **item_ptr, list_t *ll, map_key_
                 TRACE("l3", "find_pred: now current item is %p next is %p", item, next);
 
                 // The thread that completes the unlink should free the memory.
-                node_free(GET_NODE(other), ll->key_type);
+                node_free(ll, GET_NODE(other));
             } else {
                 TRACE("l2", "find_pred: lost a race to unlink item %p from pred %p", item, pred);
                 TRACE("l2", "find_pred: pred's link changed to %p", other, 0);
@@ -161,12 +158,7 @@ static int find_pred (node_t **pred_ptr, node_t **item_ptr, list_t *ll, map_key_
         // if (EXPECT_FALSE((void *)item->key == NULL))
         //     break;
 
-        int d;
-        if (EXPECT_TRUE(ll->key_type == NULL)) {
-            d = item->key - key;
-        } else {
-            d = ll->key_type->cmp((void *)item->key, (void *)key);
-        }
+        int d = ll->key_type->cmp((void *)item->key, (void *)key);
 
         // If we reached the key (or passed where it should be), we found the right predesssor
         if (d >= 0) {
@@ -187,7 +179,7 @@ static int find_pred (node_t **pred_ptr, node_t **item_ptr, list_t *ll, map_key_
         pred = item;
 
         // temp = hp0; hp0 = hp1; hp1 = temp;
-        // mt_Transfer(tracker_, MT_DEFAULT_TID, 0, 1);
+        // mt_Transfer(ll->tracker, MT_DEFAULT_TID, 0, 1);
 
         item = GET_NODE(next);
     }
@@ -206,18 +198,18 @@ map_val_t ll_lookup (list_t *ll, map_key_t key) {
     TRACE("l1", "ll_lookup: searching for key %p in list %p", key, ll);
     node_t *item;
 
-    mt_StartOp(tracker_, MT_DEFAULT_TID);
+    mt_StartOp(ll->tracker, MT_DEFAULT_TID);
     int found = find_pred(NULL, &item, ll, key, FALSE);
     // If we found an <item> matching the key return its value.
     if (found) {
         map_val_t val = item->val;
         if (val != DOES_NOT_EXIST) {
             TRACE("l1", "ll_lookup: found item %p. val %p. returning item", item, item->val);
-            mt_EndOp(tracker_, MT_DEFAULT_TID);
+            mt_EndOp(ll->tracker, MT_DEFAULT_TID);
             return val;
         }
     }
-    mt_EndOp(tracker_, MT_DEFAULT_TID);
+    mt_EndOp(ll->tracker, MT_DEFAULT_TID);
 
     TRACE("l1", "ll_lookup: no item in the list matched the key", 0, 0);
     return DOES_NOT_EXIST;
@@ -228,7 +220,7 @@ map_val_t ll_cas (list_t *ll, map_key_t key, map_val_t expectation, map_val_t ne
     TRACE("l1", "ll_cas: expectation %p new value %p", expectation, new_val);
     assert((int64_t)new_val > 0);
 
-    mt_StartOp(tracker_, MT_DEFAULT_TID);
+    mt_StartOp(ll->tracker, MT_DEFAULT_TID);
     do {
         node_t *pred, *old_item;
         int found = find_pred(&pred, &old_item, ll, key, TRUE);
@@ -236,24 +228,24 @@ map_val_t ll_cas (list_t *ll, map_key_t key, map_val_t expectation, map_val_t ne
             // There was not an item in the list that matches the key. 
             if (EXPECT_FALSE(expectation != CAS_EXPECT_DOES_NOT_EXIST && expectation != CAS_EXPECT_WHATEVER)) {
                 TRACE("l1", "ll_cas: the expectation was not met, the list was not changed", 0, 0);
-                mt_EndOp(tracker_, MT_DEFAULT_TID);
+                mt_EndOp(ll->tracker, MT_DEFAULT_TID);
                 return DOES_NOT_EXIST; // failure
             }
 
             // Create a new item and insert it into the list.
             TRACE("l2", "ll_cas: attempting to insert item between %p and %p", pred, pred->next);
-            node_t *new_item = node_alloc(key, new_val, ll->key_type);
+            node_t *new_item = node_alloc(ll, key, new_val);
             markable_t next = new_item->next = (markable_t)old_item;
             markable_t other = ATOMIC_VAR_CAS(&pred->next, (markable_t)next, (markable_t)new_item);
             if (other == next) {
                 TRACE("l1", "ll_cas: successfully inserted new item %p", new_item, 0);
-                mt_EndOp(tracker_, MT_DEFAULT_TID);
+                mt_EndOp(ll->tracker, MT_DEFAULT_TID);
                 return DOES_NOT_EXIST; // success
             }
 
             // Lost a race. Failed to insert the new item into the list.
             TRACE("l1", "ll_cas: lost a race. CAS failed. expected pred's link to be %p but found %p", next, other);
-            node_free(new_item, ll->key_type); // mt_Reclaim here
+            node_free(ll, new_item); // we can use mt_Reclaim here
             continue; // retry
         }
 
@@ -269,7 +261,7 @@ map_val_t ll_cas (list_t *ll, map_key_t key, map_val_t expectation, map_val_t ne
             if (EXPECT_FALSE(expectation == CAS_EXPECT_DOES_NOT_EXIST)) {
                 TRACE("l1", "ll_cas: found an item %p in the list that matched the key. the expectation was "
                         "not met, the list was not changed", old_item, old_item_val);
-                mt_EndOp(tracker_, MT_DEFAULT_TID);
+                mt_EndOp(ll->tracker, MT_DEFAULT_TID);
                 return old_item_val; // failure
             }
 
@@ -280,7 +272,7 @@ map_val_t ll_cas (list_t *ll, map_key_t key, map_val_t expectation, map_val_t ne
             map_val_t ret_val = ATOMIC_VAR_CAS(&old_item->val, old_item_val, new_val);
             if (ret_val == old_item_val) {
                 TRACE("l1", "ll_cas: the CAS succeeded. updated the value of the item", 0, 0);
-                mt_EndOp(tracker_, MT_DEFAULT_TID);
+                mt_EndOp(ll->tracker, MT_DEFAULT_TID);
                 return ret_val; // success
             }
             TRACE("l2", "ll_cas: lost a race. the CAS failed. another thread changed the item's value", 0, 0);
@@ -295,11 +287,11 @@ map_val_t ll_remove (list_t *ll, map_key_t key) {
     node_t *pred;
     node_t *item;
 
-    mt_StartOp(tracker_, MT_DEFAULT_TID);
+    mt_StartOp(ll->tracker, MT_DEFAULT_TID);
     int found = find_pred(&pred, &item, ll, key, TRUE);
     if (!found) {
         TRACE("l1", "ll_remove: remove failed, an item with a matching key does not exist in the list", 0, 0);
-        mt_EndOp(tracker_, MT_DEFAULT_TID);
+        mt_EndOp(ll->tracker, MT_DEFAULT_TID);
         return DOES_NOT_EXIST;
     }
 
@@ -311,7 +303,7 @@ map_val_t ll_remove (list_t *ll, map_key_t key) {
         old_next = ATOMIC_VAR_CAS(&item->next, next, MARK_NODE(STRIP_MARK(next)));
         if (HAS_MARK(old_next)) {
             TRACE("l1", "ll_remove: lost a race -- %p is already marked for removal by another thread", item, 0);
-            mt_EndOp(tracker_, MT_DEFAULT_TID);
+            mt_EndOp(ll->tracker, MT_DEFAULT_TID);
             return DOES_NOT_EXIST;
         }
     } while (next != old_next);
@@ -330,14 +322,14 @@ map_val_t ll_remove (list_t *ll, map_key_t key) {
     markable_t other;
     if ((other = ATOMIC_VAR_CAS(&pred->next, (markable_t)item, next)) != (markable_t)item) {
         TRACE("l1", "ll_remove: unlink failed; pred's link changed from %p to %p", item, other);
-        mt_EndOp(tracker_, MT_DEFAULT_TID);
+        mt_EndOp(ll->tracker, MT_DEFAULT_TID);
         return val;
     } 
 
     // The thread that completes the unlink should free the memory.
-    node_free(item, ll->key_type);
+    node_free(ll, item);
     TRACE("l1", "ll_remove: successfully unlinked item %p from the list", item, 0);
-    mt_EndOp(tracker_, MT_DEFAULT_TID);
+    mt_EndOp(ll->tracker, MT_DEFAULT_TID);
     return val;
 }
 
@@ -384,6 +376,8 @@ void ll_iter_begin (ll_iter_t *iter, map_key_t key) {
 
 map_val_t ll_iter_next (ll_iter_t *iter, map_key_t *key_ptr) {
     assert(iter);
+    list_t *ll = iter->ll;
+    assert(ll);
     if (iter->pred == NULL)
         return DOES_NOT_EXIST;
 
@@ -397,7 +391,7 @@ map_val_t ll_iter_next (ll_iter_t *iter, map_key_t *key_ptr) {
         do {
             item = iter->pred->next;
             // haz_set(hp0, STRIP_MARK(item));
-            pred = mt_Read(tracker_, MT_DEFAULT_TID, 0, STRIP_MARK(item));
+            pred = mt_Read(ll->tracker, MT_DEFAULT_TID, 0, STRIP_MARK(item));
         } while (item != VOLATILE_DEREF(iter->pred).next);
 
         iter->pred = pred; // STRIP_MARK(item);

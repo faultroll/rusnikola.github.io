@@ -28,12 +28,17 @@ typedef size_t markable_t;
 #define FALSE false
 // datatype
 typedef int       (*cmp_fun_t)   (const void *, const void *);
-typedef void *    (*clone_fun_t) (const void *); // only accept system memory
-// typedef map_key_t  (*hash_fun_t)  (const void *); // U(nique)ID
+typedef map_key_t  (*hash_fun_t)  (const void *); // U(nique)ID
 typedef struct {
-    cmp_fun_t   cmp;
-    clone_fun_t clone;
-    // hash_fun_t  hash;
+    // if we use hash_fun_t, the compare function is just integer compare
+    // otherwise, we need it size for storage and compare it using cmp_fun_t
+    // union {
+        struct {
+            size_t size;
+            cmp_fun_t cmp;
+        };
+        hash_fun_t  hash;
+    // };
 } datatype_t;
 
 typedef struct ll list_t;
