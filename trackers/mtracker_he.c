@@ -85,6 +85,20 @@ static mt_Core *mt_CoreCreate(mt_Config config)
 }
 static void mt_CoreDestroy(mt_Core *core)
 {
+    int task_num = core->config.task_num;
+	for (int i = 0; i < task_num; i++) {
+		HEInfo** field = &(core->retired[i]);
+		HEInfo* info = *field;
+		if (info == NULL) continue;
+		do {
+			HEInfo* curr = info;
+			info = curr->next;
+			void *ptr = (void *)((uintptr_t)curr - core->config.mem_size);
+			*field = info;
+			mt_CoreReclaim(core, i, ptr);
+			// dec_retired(i);
+		} while (info != NULL);
+	}
     free(core->alloc_counters);
     free(core->retire_counters);
     free(core->retired);

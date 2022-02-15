@@ -98,9 +98,9 @@ static void *mt_CoreRead(mt_Core *core, int tid, int sid, void *mem)
 	void* realptr;
 	while(true){
 		ret = mem;
-		realptr = (void*)((uintptr_t)ret & 0xfffffffffffffffc);
+		realptr = ret; // (void*)((uintptr_t)ret & 0xfffffffffffffffc);
 		mt_ReserveSlot(core->slots, tid, sid, realptr);
-		if(ret == mem){
+		if(ret == mem){ // TODO(lgY): mem should be volatile and? atomic
 			return ret;
 		}
 	}

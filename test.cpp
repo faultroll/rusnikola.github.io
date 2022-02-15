@@ -16,13 +16,15 @@ int task_stall_ = 8; // stall threads
 #include <stdlib.h> // srand/rand
 #include <time.h> // time
 #include "thread_c.h"
+#include "atomic_c.h"
 
 extern "C" {
     int mt_GetTid(void);
 }
 
 #define kNumThreads 10
-#define kNumIterations 10000000
+#define kNumIterations 1000000
+static volatile ATOMIC_VAR(int) waiting_ = kNumThreads;
 void put_get(RUnorderedMap<std::string, std::string> *m, std::string key, std::string value, int tid)
 {
     std::ostringstream stream;
@@ -53,8 +55,12 @@ int execute(void *args)
     // thrd_detach(thrd_current()); // both are OK
 
     int tid = mt_GetTid();
-    RUnorderedMap<std::string, std::string> *m = static_cast<RUnorderedMap<std::string, std::string> *>(args);
-    // map_t *m = (map_t *)args;
+    // RUnorderedMap<std::string, std::string> *m = static_cast<RUnorderedMap<std::string, std::string> *>(args);
+    map_t *m = (map_t *)args;
+
+    // wait all tasks begin
+    ATOMIC_VAR_FAA(&waiting_, -1);
+    do {  } while(waiting_);
 
     /* put_get(m, "b", "b", tid);
     put_get(m, "c", "c", tid);
@@ -66,7 +72,10 @@ int execute(void *args)
     stream << tid << " retired_cnt: " << rm_ptr->report_retired(tid) << std::endl;
     std::cout << stream.str(); */
 
+    // HE is OK
     // SSMEM not pass this test
+    // Hazard not pass valgrind test (invalid read/...)
+    // Others will leak memory (not reclaim when destroyed) 
     printf("(%zu) begin\n", (size_t)(uintptr_t)thrd_current());
     srand(time(NULL));
     for (int i = 0; i < kNumIterations / kNumThreads; ++i)
@@ -75,11 +84,15 @@ int execute(void *args)
         int key = r & 0xF;
 
         if (r & (1 << 8))
-            m->put(std::to_string(key + 1), "1", tid);
-            // map_add(m, (map_key_t)(key + 1), map_val_t(1));
+            // m->put(std::to_string(key + 1), "1", tid);
+            map_add(m, (map_key_t)(key + 1), map_val_t(1));
         else
-            m->remove(std::to_string(key + 1), tid);
-            // map_remove(m, (map_key_t)(key + 1));
+            // m->remove(std::to_string(key + 1), tid);
+            map_remove(m, (map_key_t)(key + 1));
+        
+        if ((i % 3000) == 0) {
+            // printf("(%zu) running iteration %d\n", (size_t)(uintptr_t)thrd_current(), i);
+        }
     }
     printf("(%zu) end\n", (size_t)(uintptr_t)thrd_current());
 
@@ -127,8 +140,8 @@ int main(void)
 {
     RideableFactory *p = new SortedUnorderedMapFactory<std::string, std::string>();
     Rideable *r = p->build();
-    RUnorderedMap<std::string, std::string> *q = dynamic_cast<RUnorderedMap<std::string, std::string> *>(r);
-    // map_t *q = map_alloc(&MAP_IMPL_LL, NULL);
+    // RUnorderedMap<std::string, std::string> *q = dynamic_cast<RUnorderedMap<std::string, std::string> *>(r);
+    map_t *q = map_alloc(&MAP_IMPL_LL, NULL);
 
     // execute(q);
     // nbds_no_alloc(q);
@@ -142,7 +155,6 @@ int main(void)
             continue;
         }
     }
-
     // sleep(1); // if detached, sleep to wait
     // printf("detach wait end, exit\n");
     for (i = 0; i < len; i++) {
@@ -151,7 +163,7 @@ int main(void)
         }
     }
 
-    // map_free(q);
+    map_free(q);
     delete r;
     delete p;
 

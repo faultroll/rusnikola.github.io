@@ -23,7 +23,7 @@
 #define EXPECT_FALSE(x)     __builtin_expect(!!(x), FALSE)
 #define TRACE(flag, format, v1, v2) do { /* printf("%s:" format "\n", flag, v1, v2); */ } while (0)
 // tag
-typedef size_t markable_t;
+typedef uintptr_t markable_t;
 #define TAG_VALUE(v, tag) ((v) |  tag)
 #define IS_TAGGED(v, tag) ((v) &  tag)
 #define STRIP_TAG(v, tag) ((v) & ~tag)
@@ -99,6 +99,7 @@ void ll_free (list_t *ll) {
         node_free(ll, item);
         item = next;
     }
+    node_free(ll, ll->head);
     mt_Destroy(ll->tracker);
     if (EXPECT_FALSE(ll->key_type != NULL)) {
         free(ll->key_type);
@@ -120,16 +121,22 @@ size_t ll_count (list_t *ll) {
 
 static int find_pred (node_t **pred_ptr, node_t **item_ptr, list_t *ll, map_key_t key, int help_remove) {
     node_t *pred = ll->head;
-    node_t *item = GET_NODE(mt_Read(ll->tracker, MT_DEFAULT_TID, 1, (void *)(uintptr_t)pred->next));
+    node_t *item = GET_NODE(pred->next); // mt_Read(ll->tracker, MT_DEFAULT_TID, 1, GET_NODE(pred->next));
+    // if (HAS_MARK((markable_t)item))
+    //     TRACE("l4", "find_pred: tracker slot 1 %p is marked", item, 0);
+    mt_Read(ll->tracker, MT_DEFAULT_TID, 1, STRIP_MARK((markable_t)item)); // unmarked_ptr is hazard for reclaim, not marked_ptr
     TRACE("l2", "find_pred: searching for key %p in list (head is %p)", key, pred);
 
     // haz_t *temp, *hp0 = haz_get_static(0), *hp1 = haz_get_static(1);
     while (item != NULL) {
         // haz_set(hp0, item);
-        if (STRIP_MARK((uintptr_t)mt_Read(ll->tracker, MT_DEFAULT_TID, 2, (void *)(uintptr_t)pred->next)) != item)
+        if (mt_Read(ll->tracker, MT_DEFAULT_TID, 2, STRIP_MARK(pred->next)) != item)
             return find_pred(pred_ptr, item_ptr, ll, key, help_remove); // retry
 
-        markable_t next = (uintptr_t)mt_Read(ll->tracker, MT_DEFAULT_TID, 0, (void *)(uintptr_t)item->next);
+        markable_t next = (markable_t)GET_NODE(item->next); // mt_Read(ll->tracker, MT_DEFAULT_TID, 0, GET_NODE(item->next));
+        // if (HAS_MARK(next))
+        //     TRACE("l4", "find_pred: tracker slot 0 %p is marked", next, 0);
+        mt_Read(ll->tracker, MT_DEFAULT_TID, 0, STRIP_MARK(next)); // same as hazard slot 1
 
         // A mark means the node is logically removed but not physically unlinked yet.
         while (EXPECT_FALSE(HAS_MARK(next))) {
