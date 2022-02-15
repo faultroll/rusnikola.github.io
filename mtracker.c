@@ -123,7 +123,7 @@ void mt_Reclaim(mt_Inst *handle, int tid, void *mem)
 
     handle->reclaim_func(handle->core, tid, mem);
 }
-void *mt_Read(mt_Inst *handle, int tid, int sid, void *mem)
+void *mt_Read(mt_Inst *handle, int tid, int sid, volatile void *mem)
 {
     if (NULL == handle || NULL == handle->read_func)
         return NULL;

@@ -76,9 +76,9 @@ static void mt_CoreReclaim(mt_Core *core, int tid, void *mem)
 {
     core->config.free_func(mem);
 }
-static void *mt_CoreRead(mt_Core *core, int tid, int sid, void *mem)
+static void *mt_CoreRead(mt_Core *core, int tid, int sid, volatile void *mem)
 {
-    return mem;
+    return (void *)mem;
 }
 static void mt_Empty(mt_Core *core, int tid)
 {

@@ -67,6 +67,11 @@ struct map_impl {
     map_iter_free_t  iter_free;
 };
 
+// map implements
+extern const map_impl_t MAP_IMPL_LL;
+// extern const map_impl_t MAP_IMPL_SL;
+// extern const map_impl_t MAP_IMPL_HT;
+
 #if defined(__cplusplus)
 }
 #endif

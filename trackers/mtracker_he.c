@@ -121,11 +121,11 @@ static void mt_CoreReclaim(mt_Core *core, int tid, void *mem)
 {
     core->config.free_func(mem);
 }
-static void *mt_CoreRead(mt_Core *core, int tid, int sid, void *mem)
+static void *mt_CoreRead(mt_Core *core, int tid, int sid, volatile void *mem)
 {
 	uint64_t prev_epoch = ATOMIC_VAR_LOAD(&core->reservations[tid].entry[sid]);
 	while(true){
-		void* ptr = mem;
+		void* ptr = (void *)mem;
 		uint64_t curr_epoch = ATOMIC_VAR_LOAD(&core->epoch);
 		if (curr_epoch == prev_epoch){
 			return ptr;

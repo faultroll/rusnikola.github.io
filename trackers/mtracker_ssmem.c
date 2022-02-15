@@ -90,9 +90,9 @@ static void mt_CoreReclaim(mt_Core *core, int tid, void *mem)
     ssmem_free(&core->allocator[tid], mem);
 #endif // MT_SSMEM_USE_LOCAL_ALLOCATOR
 }
-static void *mt_CoreRead(mt_Core *core, int tid, int sid, void *mem)
+static void *mt_CoreRead(mt_Core *core, int tid, int sid, volatile void *mem)
 {
-    return mem;
+    return (void *)mem;
 }
 static void mt_CoreRetire(mt_Core *core, int tid, void *mem)
 {

@@ -92,15 +92,15 @@ static void mt_CoreReclaim(mt_Core *core, int tid, void *mem)
 {
     core->config.free_func(mem);
 }
-static void *mt_CoreRead(mt_Core *core, int tid, int sid, void *mem)
+static void *mt_CoreRead(mt_Core *core, int tid, int sid, volatile void *mem)
 {
 	void* ret;
 	void* realptr;
 	while(true){
-		ret = mem;
-		realptr = ret; // (void*)((uintptr_t)ret & 0xfffffffffffffffc);
+		ret = (void *)mem; // ATOMIC_VAR_LOAD(&mem); // atomic load here
+		realptr = ret; // (void*)((uintptr_t)ret & 0xfffffffffffffffc); // find why origin use bitmask
 		mt_ReserveSlot(core->slots, tid, sid, realptr);
-		if(ret == mem){ // TODO(lgY): mem should be volatile and? atomic
+		if(ret == mem){ // mem should be volatile and? atomic
 			return ret;
 		}
 	}
