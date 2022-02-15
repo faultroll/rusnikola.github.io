@@ -55,7 +55,11 @@ struct ll {
 static node_t *node_alloc (list_t *ll, map_key_t key, map_val_t val) {
     node_t *item = (node_t *)mt_Alloc(ll->tracker, MT_DEFAULT_TID);
     assert(!HAS_MARK((size_t)item));
-    item->key = (map_key_t)((uintptr_t)item + sizeof(node_t));
+    if (EXPECT_TRUE(ll->key_type == NULL)) {
+        item->key = key;
+    } else {
+        item->key = (map_key_t)((uintptr_t)item + sizeof(node_t));
+    }
     item->val = val;
     return item;
 }
@@ -65,30 +69,23 @@ static void node_free(list_t *ll, node_t *item)
     mt_Retire(ll->tracker, MT_DEFAULT_TID, item);
 }
 
-static int cmp_nil(const void *pa, const void *pb)
-{
-    map_key_t a = *(map_key_t *)pa, b = (map_key_t)pb;
-    return a - b;
-}
-
 list_t *ll_alloc (const datatype_t *key_type) {
     list_t *ll = (list_t *)malloc(sizeof(list_t));
-    ll->key_type = (datatype_t *)malloc(sizeof(datatype_t));
     // Three ways tracking key_type
     // 1. store in node
     // 2. each list has two trackers
     //    one common tracker, for node; the other in list, for key
     // (we use this)3. alloc with node (just like tracker info)
-    //    we treat no key_type as map_key_t key_type
-    if (EXPECT_TRUE(key_type == NULL)) {
-        ll->key_type->size = sizeof(map_key_t);
-        ll->key_type->cmp = cmp_nil;
-    } else {
-        ll->key_type->size = key_type->size;
-        ll->key_type->cmp = key_type->cmp;
-    }
+    //    (not using this)we can treat no key_type as map_key_t key_type
     mt_Type type = MT_HE;
-    mt_Config config = MT_DEFAULT_CONF(sizeof(node_t) + ll->key_type->size);
+    mt_Config config = MT_DEFAULT_CONF(sizeof(node_t));
+    if (EXPECT_FALSE(key_type != NULL)) {
+        ll->key_type = (datatype_t *)malloc(sizeof(datatype_t));
+        memcpy(ll->key_type, key_type, sizeof(datatype_t));
+        config.mem_size += ll->key_type->size;
+    } else {
+        ll->key_type = NULL;
+    }
     ll->tracker = mt_Create(type, config);
     ll->head = node_alloc(ll, 0, 0);
     ll->head->next = DOES_NOT_EXIST;
@@ -103,7 +100,9 @@ void ll_free (list_t *ll) {
         item = next;
     }
     mt_Destroy(ll->tracker);
-    free(ll->key_type);
+    if (EXPECT_FALSE(ll->key_type != NULL)) {
+        free(ll->key_type);
+    }
     free(ll);
 }
 
@@ -175,7 +174,12 @@ static int find_pred (node_t **pred_ptr, node_t **item_ptr, list_t *ll, map_key_
         // if (EXPECT_FALSE((void *)item->key == NULL))
         //     break;
 
-        int d = ll->key_type->cmp((void *)item->key, (void *)key);
+        int d;
+        if (EXPECT_TRUE(ll->key_type == NULL)) {
+            d = item->key - key;
+        } else {
+            d = ll->key_type->cmp((void *)item->key, (void *)key);
+        }
 
         // If we reached the key (or passed where it should be), we found the right predesssor
         if (d >= 0) {
