@@ -123,12 +123,12 @@ void mt_Reclaim(mt_Inst *handle, int tid, void *mem)
 
     handle->reclaim_func(handle->core, tid, mem);
 }
-void *mt_Read(mt_Inst *handle, int tid, int sid, volatile void *mem)
+void *mt_Acquire(mt_Inst *handle, int tid, int sid, void *volatile mem)
 {
-    if (NULL == handle || NULL == handle->read_func)
-        return NULL;
+    if (NULL == handle || NULL == handle->acquire_func)
+        return NULL; // posion?
 
-    return handle->read_func(handle->core, tid, handle->slot_renamers[tid][sid], mem);
+    return handle->acquire_func(handle->core, tid, handle->slot_renamers[tid][sid], mem);
 }
 void mt_Retire(mt_Inst *handle, int tid, void *mem)
 {

@@ -300,7 +300,7 @@ public:
 	}
 
 	T* read(std::atomic<T*>& obj, int idx, int tid){
-		return static_cast<T*>(mt_Read(tracker, tid, idx, static_cast<void*>(obj)));
+		return static_cast<T*>(mt_Acquire(tracker, tid, idx, static_cast<void* volatile>(obj)));
 	}
 
 	void retire(T* obj, int tid){

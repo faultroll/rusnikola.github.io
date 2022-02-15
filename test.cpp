@@ -14,6 +14,7 @@ int task_stall_ = 8; // stall threads
 #include <sstream>
 #include <stdlib.h> // srand/rand
 #include <time.h> // time
+#include <unistd.h> // sleep
 #include "thread_c.h"
 #include "atomic_c.h"
 
@@ -75,25 +76,47 @@ int execute(void *args)
     // SSMEM not pass this test
     // Hazard not pass valgrind test (invalid read/...)
     // Others will leak memory (not reclaim when destroyed) 
-    printf("(%zu) begin\n", (size_t)(uintptr_t)thrd_current());
-    srand(time(NULL));
-    for (int i = 0; i < kNumIterations / kNumThreads; ++i)
-    {
-        unsigned int r = rand();
-        int key = r & 0xF;
-
-        if (r & (1 << 8))
-            // m->put(std::to_string(key + 1), "1", tid);
-            map_add(m, (map_key_t)(key + 1), map_val_t(1));
-        else
-            // m->remove(std::to_string(key + 1), tid);
-            map_remove(m, (map_key_t)(key + 1));
-        
-        if ((i % 3000) == 0) {
-            // printf("(%zu) running iteration %d\n", (size_t)(uintptr_t)thrd_current(), i);
+    const int iter_div = 5;
+    if (tid % iter_div) {
+        // test iter
+        usleep(100 * 1000);
+        map_key_t key = 0;
+        map_val_t val = 0;
+        map_iter_t *it = map_iter_alloc(m);
+        printf("(%zu) begin iter\n", (size_t)(uintptr_t)thrd_current());
+        for (int i = 0; i < iter_div; ++i) {
+            usleep(100 * 1000);
+            map_iter_begin(it, DOES_NOT_EXIST);
+            printf("(%zu) reset iter %d\n", (size_t)(uintptr_t)thrd_current(), i);
+            while ((val = map_iter_next(it, &key)) != DOES_NOT_EXIST)
+            {
+                printf("(%zu) key (%d), val (%d).\n", (size_t)(uintptr_t)thrd_current(), (int)key, (int)val);
+                // usleep(1 * 1000);
+            }
         }
+        printf("(%zu) end iter\n", (size_t)(uintptr_t)thrd_current());
+        map_iter_free(it);
+    } else {
+        printf("(%zu) begin\n", (size_t)(uintptr_t)thrd_current());
+        srand(time(NULL));
+        for (int i = 0; i < kNumIterations / kNumThreads; ++i)
+        {
+            unsigned int r = rand();
+            int key = r & 0xF;
+
+            if (r & (1 << 8))
+                // m->put(std::to_string(key + 1), "1", tid);
+                map_add(m, (map_key_t)(key + 1), map_val_t(1));
+            else
+                // m->remove(std::to_string(key + 1), tid);
+                map_remove(m, (map_key_t)(key + 1));
+            
+            if ((i % 3000) == 0) {
+                printf("(%zu) running iteration %d\n", (size_t)(uintptr_t)thrd_current(), i);
+            }
+        }
+        printf("(%zu) end\n", (size_t)(uintptr_t)thrd_current());
     }
-    printf("(%zu) end\n", (size_t)(uintptr_t)thrd_current());
 
     return 0;
 }
@@ -276,10 +299,10 @@ void TestMTWriteAndRead(CuTest *tc)
     CuAssertTrue(tc, handle != NULL);
     mem_alloc = mt_Alloc(handle, tid);
     CuAssertTrue(tc, mem_alloc != NULL);
-    mem_read = (mt_Config *)mt_Read(handle, tid, sid, mem_alloc);
+    mem_read = (mt_Config *)mt_Acquire(handle, tid, sid, mem_alloc);
     CuAssertTrue(tc, mem_read != NULL);
     mem_read->mem_size = 0xdeafbeaf;
-    mem_read = (mt_Config *)mt_Read(handle, tid, sid, mem_alloc);
+    mem_read = (mt_Config *)mt_Acquire(handle, tid, sid, mem_alloc);
     CuAssertTrue(tc, mem_read != NULL);
     CuAssertTrue(tc, mem_read->mem_size == 0xdeafbeaf);
     mt_Reclaim(handle, tid, mem_alloc);

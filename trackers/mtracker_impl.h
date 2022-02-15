@@ -26,7 +26,7 @@ typedef void *(*mt_AllocFunc)(mt_Core *handle, int tid);
 // NOTE: reclaim (obj, tid) should be used on all retired objects.
 // NOTE: reclaim (obj) shall be only used to thread-local objects.
 typedef void (*mt_ReclaimFunc)(mt_Core *handle, int tid, void *mem);
-typedef void *(*mt_ReadFunc)(mt_Core *handle, int tid, int sid, volatile void *mem);
+typedef void *(*mt_AcquireFunc)(mt_Core *handle, int tid, int sid, void *volatile mem);
 typedef void (*mt_RetireFunc)(mt_Core *handle, int tid, void *mem);
 typedef void (*mt_StartOpFunc)(mt_Core *handle, int tid);
 typedef void (*mt_EndOpFunc)(mt_Core *handle, int tid);
@@ -37,7 +37,7 @@ struct mt_Inst {
         mt_DestroyFunc  destroy_func;
         mt_AllocFunc    alloc_func;
         mt_ReclaimFunc  reclaim_func;
-        mt_ReadFunc     read_func;
+        mt_AcquireFunc  acquire_func;
         mt_RetireFunc   retire_func;
         mt_StartOpFunc  start_op_func;
         mt_EndOpFunc    end_op_func;

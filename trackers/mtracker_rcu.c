@@ -76,7 +76,7 @@ static void mt_CoreReclaim(mt_Core *core, int tid, void *mem)
 {
     core->config.free_func(mem);
 }
-static void *mt_CoreRead(mt_Core *core, int tid, int sid, volatile void *mem)
+static void *mt_CoreAcquire(mt_Core *core, int tid, int sid, void *volatile mem)
 {
     return (void *)mem;
 }
@@ -151,7 +151,7 @@ void mt_InitFuncRCU(mt_Inst *handle)
     handle->destroy_func    = mt_CoreDestroy;
     handle->alloc_func      = mt_CoreAlloc;
     handle->reclaim_func    = mt_CoreReclaim;
-    handle->read_func       = mt_CoreRead;
+    handle->acquire_func    = mt_CoreAcquire;
     handle->retire_func     = mt_CoreRetire;
     handle->start_op_func   = mt_CoreRCUStartOp;
     handle->end_op_func     = mt_CoreRCUEndOp;
@@ -163,7 +163,7 @@ void mt_InitFuncQSBR(mt_Inst *handle)
     handle->destroy_func    = mt_CoreDestroy;
     handle->alloc_func      = mt_CoreAlloc;
     handle->reclaim_func    = mt_CoreReclaim;
-    handle->read_func       = mt_CoreRead;
+    handle->acquire_func    = mt_CoreAcquire;
     handle->retire_func     = mt_CoreRetire;
     handle->start_op_func   = mt_CoreQSBRStartOp;
     handle->end_op_func     = mt_CoreQSBREndOp;

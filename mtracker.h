@@ -56,7 +56,7 @@ mt_Inst *mt_Create(mt_Type type, mt_Config config);
 void    mt_Destroy(mt_Inst *handle);
 void    *mt_Alloc(mt_Inst *handle, int tid); // malloc, size is in config
 void    mt_Reclaim(mt_Inst *handle, int tid, void *mem); // free
-void    *mt_Read(mt_Inst *handle, int tid, int sid, volatile void *mem); // acquire
+void    *mt_Acquire(mt_Inst *handle, int tid, int sid, void *volatile mem); // acquire
 void    mt_Retire(mt_Inst *handle, int tid, void *mem); // release
 void    mt_StartOp(mt_Inst *handle, int tid); // enter
 void    mt_EndOp(mt_Inst *handle, int tid); // leave, clear (all slot)
