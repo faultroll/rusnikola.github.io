@@ -10,6 +10,8 @@ int task_stall_ = 8; // stall threads
 #include "rideables/LinkList.hpp"
 #include "rideables/BonsaiTree.hpp"
 #include "rideables/NatarajanTree.hpp"
+#include "nbds/map.h"
+#include "nbds/list.h"
 #include <sstream>
 #include <stdlib.h> // srand/rand
 #include <time.h> // time
@@ -50,8 +52,9 @@ int execute(void *args)
 {
     // thrd_detach(thrd_current()); // both are OK
 
-    RUnorderedMap<std::string, std::string> *m = static_cast<RUnorderedMap<std::string, std::string> *>(args);
     int tid = mt_GetTid();
+    RUnorderedMap<std::string, std::string> *m = static_cast<RUnorderedMap<std::string, std::string> *>(args);
+    // map_t *m = (map_t *)args;
 
     /* put_get(m, "b", "b", tid);
     put_get(m, "c", "c", tid);
@@ -72,25 +75,63 @@ int execute(void *args)
         int key = r & 0xF;
 
         if (r & (1 << 8))
-            // put_get(m, std::to_string(key + 1), std::to_string(1), tid);
             m->put(std::to_string(key + 1), "1", tid);
+            // map_add(m, (map_key_t)(key + 1), map_val_t(1));
         else
-            // remove_get(m, std::to_string(key + 1), tid);
             m->remove(std::to_string(key + 1), tid);
+            // map_remove(m, (map_key_t)(key + 1));
     }
     printf("(%zu) end\n", (size_t)(uintptr_t)thrd_current());
 
     return 0;
 }
 
+int nbds_no_alloc(map_t *map)
+{
+    const int n = 20;
+    map_key_t key = 0;
+    map_val_t val = 0;
+
+    srand(time(NULL));
+    for (int i = 1; i < n; ++i)
+    {
+        // CAUTION key and val cannot be 0
+        key = rand() % n + 1;
+        val = rand() % n + 1; // n - key;
+        printf("[%s] write: key (%d), val (%d).\n", __func__, (int)key, (int)val);
+        map_add(map, key, val);
+    }
+
+    map_iter_t *iter = map_iter_alloc(map);
+    printf("[%s] ============= begin iter\n", __func__);
+    map_iter_begin(iter, DOES_NOT_EXIST);
+    while ((val = map_iter_next(iter, &key)) != DOES_NOT_EXIST)
+    {
+        printf("[%s] read: key (%d), val (%d).\n", __func__, (int)key, (int)val);
+    }
+    printf("[%s] ============= reset iter\n", __func__);
+    map_iter_begin(iter, DOES_NOT_EXIST);
+    while ((val = map_iter_next(iter, &key)) != DOES_NOT_EXIST)
+    {
+        printf("[%s] read: key (%d), val (%d).\n", __func__, (int)key, (int)val);
+    }
+    printf("[%s] ============= end iter\n", __func__);
+    map_iter_free(iter);
+
+    map_print(map, false);
+
+    return 0;
+}
 
 int main(void)
 {
     RideableFactory *p = new SortedUnorderedMapFactory<std::string, std::string>();
     Rideable *r = p->build();
     RUnorderedMap<std::string, std::string> *q = dynamic_cast<RUnorderedMap<std::string, std::string> *>(r);
+    // map_t *q = map_alloc(&MAP_IMPL_LL, NULL);
 
     // execute(q);
+    // nbds_no_alloc(q);
 
     thrd_t tp[kNumThreads] = {0};
     size_t i, len = sizeof(tp) / sizeof(tp[0]);
@@ -110,6 +151,7 @@ int main(void)
         }
     }
 
+    // map_free(q);
     delete r;
     delete p;
 

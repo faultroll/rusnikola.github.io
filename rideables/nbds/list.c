@@ -21,13 +21,12 @@
 #define FALSE false
 #define EXPECT_TRUE(x)      __builtin_expect(!!(x), TRUE)
 #define EXPECT_FALSE(x)     __builtin_expect(!!(x), FALSE)
-#define TRACE(flag, format, v1, v2) do { } while (0)
+#define TRACE(flag, format, v1, v2) do { /* printf("%s:" format "\n", flag, v1, v2); */ } while (0)
 // tag
 typedef size_t markable_t;
 #define TAG_VALUE(v, tag) ((v) |  tag)
 #define IS_TAGGED(v, tag) ((v) &  tag)
 #define STRIP_TAG(v, tag) ((v) & ~tag)
-#define DOES_NOT_EXIST  ((intptr_t)NULL)
 #define VOLATILE_DEREF(x) (*((volatile __typeof__(x))(x)))
 
 typedef struct node {
@@ -68,22 +67,25 @@ static void node_free(list_t *ll, node_t *item)
 
 static int cmp_nil(const void *pa, const void *pb)
 {
-    map_key_t a = *(map_key_t *)pa, b = *(map_key_t *)pb;
+    map_key_t a = *(map_key_t *)pa, b = (map_key_t)pb;
     return a - b;
 }
 
 list_t *ll_alloc (const datatype_t *key_type) {
     list_t *ll = (list_t *)malloc(sizeof(list_t));
-    ll->key_type = key_type;
+    ll->key_type = (datatype_t *)malloc(sizeof(datatype_t));
     // Three ways tracking key_type
     // 1. store in node
     // 2. each list has two trackers
     //    one common tracker, for node; the other in list, for key
     // (we use this)3. alloc with node (just like tracker info)
     //    we treat no key_type as map_key_t key_type
-    if (EXPECT_TRUE(ll->key_type == NULL)) {
+    if (EXPECT_TRUE(key_type == NULL)) {
         ll->key_type->size = sizeof(map_key_t);
         ll->key_type->cmp = cmp_nil;
+    } else {
+        ll->key_type->size = key_type->size;
+        ll->key_type->cmp = key_type->cmp;
     }
     mt_Type type = MT_HE;
     mt_Config config = MT_DEFAULT_CONF(sizeof(node_t) + ll->key_type->size);
@@ -101,6 +103,7 @@ void ll_free (list_t *ll) {
         item = next;
     }
     mt_Destroy(ll->tracker);
+    free(ll->key_type);
     free(ll);
 }
 

@@ -34,6 +34,7 @@ void         map_iter_free  (map_iter_t *iter);
 
 /////////////////////////////////////////////////////////////////////////////////////
 
+#define DOES_NOT_EXIST  (0) // (map_val_t)(0) or (map_key_t)(0)
 #define CAS_EXPECT_DOES_NOT_EXIST ( 0)
 #define CAS_EXPECT_EXISTS         (-1)
 #define CAS_EXPECT_WHATEVER       (-2)
