@@ -6,7 +6,7 @@
  * http://www.research.ibm.com/people/m/michael/spaa-2002.pdf
  */
 
-#include "nbds_list.h"
+#include "list.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +15,20 @@
 #include "atomic_c.h"
 #include "thread_c.h"
 #include "mtracker.h"
+
+// common
+#define TRUE  true
+#define FALSE false
+#define EXPECT_TRUE(x)      __builtin_expect(!!(x), TRUE)
+#define EXPECT_FALSE(x)     __builtin_expect(!!(x), FALSE)
+#define TRACE(flag, format, v1, v2) do { } while (0)
+// tag
+typedef size_t markable_t;
+#define TAG_VALUE(v, tag) ((v) |  tag)
+#define IS_TAGGED(v, tag) ((v) &  tag)
+#define STRIP_TAG(v, tag) ((v) & ~tag)
+#define DOES_NOT_EXIST  ((intptr_t)NULL)
+#define VOLATILE_DEREF(x) (*((volatile __typeof__(x))(x)))
 
 typedef struct node {
     map_key_t  key;

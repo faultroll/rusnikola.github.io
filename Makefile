@@ -8,7 +8,8 @@ strip  := $(prfx)strip
 
 name    := mtracker
 srcs    := # $(wildcard *.c) $(wildcard *.cpp)
-srcs    += test.cpp rideables/BonsaiTree.cpp rideables/nbds_list.c
+srcs    += test.cpp rideables/BonsaiTree.cpp 
+srcs    += $(wildcard rideables/nbds/*.c)
 srcs    += mtracker.c gettid.c \
            trackers/mtracker_base.c trackers/mtracker_rcu.c \
            trackers/mtracker_hazard.c trackers/mtracker_he.c \
@@ -21,6 +22,7 @@ objs    := $(patsubst %.c,%.o,$(filter %.c, $(srcs))) \
 deps    := $(patsubst %.o,%.d,$(objs))
 libs    := -lpthread # -latomic
 cflags  := -I. -I./rideables -I./trackers -Wno-unused-parameter
+cflags  += -I./features/nbds
 cflags  += -I./features -DWEBRTC_POSIX
 cflags  += -I./trackers/ssmem/include # -DNDEBUG
 cflags  += -I./cutest -g
