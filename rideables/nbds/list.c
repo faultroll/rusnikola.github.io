@@ -59,6 +59,7 @@ static node_t *node_alloc (list_t *ll, map_key_t key, map_val_t val) {
         item->key = key;
     } else {
         item->key = (map_key_t)((uintptr_t)item + sizeof(node_t));
+        memcpy((void *)item->key, (const void *)key, ll->key_type->size);
     }
     item->val = val;
     return item;
@@ -87,7 +88,7 @@ list_t *ll_alloc (const datatype_t *key_type) {
         ll->key_type = NULL;
     }
     ll->tracker = mt_Create(type, config);
-    ll->head = node_alloc(ll, 0, 0);
+    ll->head = (node_t *)mt_Alloc(ll->tracker, MT_DEFAULT_TID); // node_alloc(ll, 0, 0);
     ll->head->next = DOES_NOT_EXIST;
     return ll;
 }
@@ -99,7 +100,7 @@ void ll_free (list_t *ll) {
         node_free(ll, item);
         item = next;
     }
-    node_free(ll, ll->head);
+    mt_Retire(ll->tracker, MT_DEFAULT_TID, ll->head); // node_free(ll, ll->head);
     mt_Destroy(ll->tracker);
     if (EXPECT_FALSE(ll->key_type != NULL)) {
         free(ll->key_type);
@@ -250,7 +251,7 @@ map_val_t ll_lookup (list_t *ll, map_key_t key) {
 map_val_t ll_cas (list_t *ll, map_key_t key, map_val_t expectation, map_val_t new_val) {
     TRACE("l1", "ll_cas: key %p list %p", key, ll);
     TRACE("l1", "ll_cas: expectation %p new value %p", expectation, new_val);
-    assert((int64_t)new_val > 0);
+    assert(new_val != DOES_NOT_EXIST);
 
     mt_StartOp(ll->tracker, MT_DEFAULT_TID);
     do {

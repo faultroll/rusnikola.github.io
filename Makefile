@@ -8,7 +8,7 @@ strip  := $(prfx)strip
 
 name    := mtracker
 srcs    := # $(wildcard *.c) $(wildcard *.cpp)
-srcs    += test.cpp rideables/BonsaiTree.cpp 
+srcs    += rideables/BonsaiTree.cpp 
 srcs    += $(wildcard rideables/nbds/*.c)
 srcs    += mtracker.c gettid.c \
            trackers/mtracker_base.c trackers/mtracker_rcu.c \
@@ -17,6 +17,7 @@ srcs    += mtracker.c gettid.c \
 # srcs    += $(wildcard features/*.c)
 srcs    += trackers/ssmem/src/ssmem.c trackers/mtracker_ssmem.c
 srcs    += cutest/CuTest.c
+srcs    += tests/test.cpp # tests/map_test2.c
 objs    := $(patsubst %.c,%.o,$(filter %.c, $(srcs))) \
            $(patsubst %.cpp,%.o,$(filter %.cpp, $(srcs)))
 deps    := $(patsubst %.o,%.d,$(objs))
@@ -26,6 +27,7 @@ cflags  += -I./features/nbds
 cflags  += -I./features -DWEBRTC_POSIX
 cflags  += -I./trackers/ssmem/include # -DNDEBUG
 cflags  += -I./cutest -g
+cflags  += -I./tests
 ldflags := 
 common_cflags  := -Os -Wall -Wextra -fPIC
 common_ldflags := -Wl,--gc-sections -Wl,--as-needed -Wl,--export-dynamic
